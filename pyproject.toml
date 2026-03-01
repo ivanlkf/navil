@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "navil"
+version = "0.1.0"
+description = "Supply-chain security toolkit for MCP (Model Context Protocol) servers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Pantheon Lab Limited", email = "info@pantheonlab.ai"},
+]
+keywords = [
+    "mcp",
+    "security",
+    "supply-chain",
+    "ai-agents",
+    "credentials",
+    "policy-engine",
+    "anomaly-detection",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "PyYAML>=6.0",
+    "PyJWT>=2.8.0",
+    "cryptography>=41.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8",
+    "types-PyYAML>=6.0",
+]
+
+[project.scripts]
+navil = "mcp_guardian.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/navil-dev/navil"
+Repository = "https://github.com/navil-dev/navil"
+Documentation = "https://github.com/navil-dev/navil#readme"
+Issues = "https://github.com/navil-dev/navil/issues"
+Changelog = "https://github.com/navil-dev/navil/blob/main/CHANGELOG.md"
+
+[tool.setuptools.package-data]
+mcp_guardian = ["sample_configs/*.json", "sample_policies/*.yaml", "py.typed"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=mcp_guardian --cov-report=term-missing --tb=short"
+
+[tool.coverage.run]
+source = ["mcp_guardian"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
