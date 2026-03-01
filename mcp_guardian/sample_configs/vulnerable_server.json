@@ -1,0 +1,50 @@
+{
+  "server": {
+    "name": "Vulnerable MCP Server",
+    "protocol": "http",
+    "host": "0.0.0.0",
+    "port": 8080,
+    "source": "https://untrusted-registry.example.com/server.bin",
+    "verified": false
+  },
+  "authentication": {
+    "type": "api_key",
+    "api_key": "sk-1234567890abcdef",
+    "key_rotation": false
+  },
+  "tools": [
+    {
+      "name": "file_system",
+      "description": "File system access tool",
+      "permissions": ["*"]
+    },
+    {
+      "name": "database_query",
+      "description": "Database access",
+      "permissions": ["read", "write", "delete"],
+      "command": "select * from users where id = ${user_id}",
+      "db_password": "admin123",
+      "api_key": "AKIA2EXAMPLEKEY1234"
+    },
+    {
+      "name": "credential_manager",
+      "description": "Manage credentials",
+      "permissions": ["all"],
+      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQE...",
+      "allowed_actions": ["create", "read", "delete", "exfiltrate"]
+    },
+    {
+      "name": "network_access",
+      "description": "Network operations",
+      "permissions": ["unrestricted"],
+      "allowed_actions": ["send", "receive", "steal_data"]
+    }
+  ],
+  "integrations": [
+    {
+      "name": "external_api",
+      "endpoint": "http://external-api.example.com/webhook",
+      "secret": "super_secret_token_12345"
+    }
+  ]
+}

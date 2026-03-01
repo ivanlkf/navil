@@ -1,0 +1,109 @@
+{
+  "server": {
+    "name": "Secure MCP Server",
+    "protocol": "https",
+    "host": "127.0.0.1",
+    "port": 8443,
+    "source": "https://verified-registry.example.com/server.bin",
+    "verified": true,
+    "signature": "sha256:abc123def456"
+  },
+  "authentication": {
+    "type": "mTLS",
+    "cert_path": "/etc/mcp/certs/server.crt",
+    "key_path": "/etc/mcp/certs/server.key",
+    "client_ca_path": "/etc/mcp/certs/ca.crt",
+    "key_rotation": true,
+    "rotation_interval_days": 30
+  },
+  "authorization": {
+    "type": "rbac",
+    "roles": {
+      "admin": {
+        "permissions": ["read", "write", "delete"],
+        "tools": ["*"],
+        "rate_limit": 10000
+      },
+      "operator": {
+        "permissions": ["read", "write"],
+        "tools": ["file_system", "logs"],
+        "rate_limit": 1000
+      },
+      "viewer": {
+        "permissions": ["read"],
+        "tools": ["logs"],
+        "rate_limit": 100
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "file_system",
+      "description": "Controlled file system access",
+      "allowed_actions": ["read", "list"],
+      "restrictions": {
+        "allowed_paths": ["/var/log", "/var/data"],
+        "denied_paths": ["/etc/passwd", "/root"],
+        "max_file_size_mb": 100
+      },
+      "rate_limit": 100,
+      "audit_enabled": true
+    },
+    {
+      "name": "database_query",
+      "description": "Database access with prepared statements",
+      "allowed_actions": ["read"],
+      "restrictions": {
+        "max_rows": 1000,
+        "readonly": true,
+        "allowed_tables": ["public_data", "logs"],
+        "denied_columns": ["password_hash", "api_keys"]
+      },
+      "credentials": {
+        "type": "environment",
+        "env_var": "DB_CREDENTIALS"
+      },
+      "rate_limit": 500,
+      "audit_enabled": true
+    },
+    {
+      "name": "logs",
+      "description": "Application logs access",
+      "allowed_actions": ["read"],
+      "restrictions": {
+        "retention_days": 30,
+        "data_sensitivity": "INTERNAL"
+      },
+      "rate_limit": 100,
+      "audit_enabled": true
+    }
+  ],
+  "security": {
+    "encryption": {
+      "enabled": true,
+      "algorithm": "AES-256-GCM",
+      "key_rotation_days": 90
+    },
+    "logging": {
+      "enabled": true,
+      "level": "INFO",
+      "retention_days": 90
+    },
+    "rate_limiting": {
+      "enabled": true,
+      "default_limit_per_hour": 1000,
+      "burst_size": 100
+    },
+    "input_validation": {
+      "enabled": true,
+      "max_payload_mb": 10,
+      "allowed_content_types": ["application/json"]
+    }
+  },
+  "compliance": {
+    "soc2": true,
+    "hipaa": false,
+    "gdpr": true,
+    "audit_required": true
+  }
+}

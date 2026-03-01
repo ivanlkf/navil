@@ -1,0 +1,166 @@
+version: "1.0"
+description: "Default MCP Guardian security policy"
+
+# Define agent profiles and their permissions
+agents:
+  default:
+    tools_allowed: ["*"]
+    tools_denied: []
+    rate_limit_per_hour: 1000
+    data_clearance: PUBLIC
+    action_restrictions: {}
+
+  read_only:
+    tools_allowed: ["logs", "metrics", "status"]
+    tools_denied: ["credential_manager", "system_config", "user_management"]
+    rate_limit_per_hour: 500
+    data_clearance: PUBLIC
+    action_restrictions:
+      file_system: ["write", "delete"]
+      database: ["write", "delete", "create"]
+
+  admin:
+    tools_allowed: ["*"]
+    tools_denied: []
+    rate_limit_per_hour: 10000
+    data_clearance: RESTRICTED
+    action_restrictions: {}
+
+  untrusted:
+    tools_allowed: ["status", "health"]
+    tools_denied: ["*"]
+    rate_limit_per_hour: 100
+    data_clearance: PUBLIC
+    action_restrictions:
+      file_system: ["*"]
+      network: ["*"]
+      database: ["*"]
+
+# Define tool-level security policies
+tools:
+  file_system:
+    allowed_actions: ["read", "list"]
+    denied_actions: ["delete", "write"]
+    max_file_size_mb: 100
+    allowed_paths:
+      - "/var/log"
+      - "/var/data"
+    denied_paths:
+      - "/etc/shadow"
+      - "/root"
+      - "/.ssh"
+
+  database:
+    allowed_actions: ["read"]
+    denied_actions: ["delete", "drop", "truncate"]
+    max_rows_per_query: 10000
+    allowed_tables:
+      - "public_data"
+      - "logs"
+    denied_tables:
+      - "credentials"
+      - "secrets"
+      - "users_private"
+
+  network:
+    allowed_actions: ["read"]
+    denied_actions: ["send", "receive"]
+    allowed_destinations:
+      - "internal-api.example.com"
+      - "logs.example.com"
+    denied_destinations:
+      - "external-exfil.example.com"
+      - "c2-server.example.com"
+
+  credential_manager:
+    allowed_actions: []
+    denied_actions: ["*"]
+
+  admin_panel:
+    allowed_actions: []
+    denied_actions: ["*"]
+
+  user_management:
+    allowed_actions: ["read"]
+    denied_actions: ["write", "delete", "create"]
+
+  logs:
+    allowed_actions: ["read", "export"]
+    denied_actions: ["delete", "modify"]
+
+  metrics:
+    allowed_actions: ["read"]
+    denied_actions: ["write", "delete"]
+
+  status:
+    allowed_actions: ["read"]
+    denied_actions: ["*"]
+
+# Define suspicious patterns to alert on
+suspicious_patterns:
+  - name: "data_exfiltration"
+    tool: "*"
+    actions: ["read"]
+    conditions:
+      data_size_mb: 100
+    alert_level: "CRITICAL"
+
+  - name: "privilege_escalation_attempt"
+    tool: "credential_manager"
+    actions: ["*"]
+    alert_level: "CRITICAL"
+
+  - name: "credential_access"
+    tool: "database"
+    actions: ["read"]
+    conditions:
+      query_pattern: "password|secret|token|key"
+    alert_level: "HIGH"
+
+  - name: "unusual_file_access"
+    tool: "file_system"
+    actions: ["read"]
+    conditions:
+      path_pattern: "/.ssh|/etc/passwd|/root"
+    alert_level: "HIGH"
+
+  - name: "network_exfiltration"
+    tool: "network"
+    actions: ["send"]
+    conditions:
+      destination_pattern: "external|exfil|c2"
+    alert_level: "CRITICAL"
+
+# Rate limiting configuration
+rate_limiting:
+  enabled: true
+  default_limit_per_hour: 1000
+  burst_limit: 100
+  time_window_seconds: 3600
+
+# Data sensitivity levels
+data_sensitivity:
+  PUBLIC:
+    clearance_required: PUBLIC
+  INTERNAL:
+    clearance_required: INTERNAL
+  CONFIDENTIAL:
+    clearance_required: CONFIDENTIAL
+  RESTRICTED:
+    clearance_required: RESTRICTED
+
+# Audit and logging
+audit:
+  enabled: true
+  log_all_decisions: true
+  log_denied_calls: true
+  log_sensitive_access: true
+  retention_days: 90
+
+# Compliance settings
+compliance:
+  soc2: true
+  hipaa: false
+  gdpr: true
+  require_audit_trail: true
+  require_encryption: true
