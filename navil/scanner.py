@@ -59,11 +59,12 @@ class MCPSecurityScanner:
         "jwt": r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.",
     }
 
-    # Known malicious patterns
+    # Known malicious patterns — tuned to avoid false positives on legitimate configs
+    # (e.g. RBAC role names, denied-path lists, standard permission verbs)
     MALICIOUS_PATTERNS = {
-        "exfiltration": r"(?i)(exfiltrate|steal|leak|unauthorized.*send|socket.*send.*outside)",
-        "privilege_escalation": r"(?i)(escalate|privilege|sudo|root|admin.*grant)",
-        "data_destruction": r"(?i)(delete.*all|drop.*database|rm.*-rf|wipe|destroy)",
+        "exfiltration": r"(?i)(exfiltrate|steal_data|leak_credentials|unauthorized.*send|socket.*send.*outside)",
+        "privilege_escalation": r"(?i)(escalate_privilege|sudo\s|run_as_root|admin.*grant_all)",
+        "data_destruction": r"(?i)(delete_all_records|drop\s+database|rm\s+-rf|wipe_disk|destroy_data)",
         "backdoor": r"(?i)(backdoor|hidden.*access|secret.*command|unauthorized.*entry)",
     }
 

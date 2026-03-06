@@ -51,3 +51,11 @@ MANIFEST
 # Environment variables
 .env
 .env.local
+
+# Claude Code
+.claude/
+CLAUDE_CODE_PROMPT.md
+
+# Dashboard (React frontend)
+dashboard/node_modules/
+dashboard/dist/

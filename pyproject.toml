@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Supply-chain security toolkit for MCP (Model Context Protocol) servers"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "Apache-2.0"}
+license = {text = "Apache-2.0 AND BUSL-1.1"}
 authors = [
     {name = "Pantheon Lab Limited", email = "info@pantheonlab.ai"},
 ]
@@ -51,19 +51,39 @@ dev = [
     "mypy>=1.8",
     "types-PyYAML>=6.0",
 ]
+ml = [
+    "scikit-learn>=1.3",
+    "numpy>=1.24",
+    "joblib>=1.3",
+]
+llm = [
+    "anthropic>=0.25",
+    "openai>=1.12",
+    "google-generativeai>=0.5",
+]
+cloud = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+]
+all = [
+    "navil[ml]",
+    "navil[llm]",
+    "navil[cloud]",
+]
 
 [project.scripts]
-navil = "mcp_guardian.cli:main"
+navil = "navil.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/navil-dev/navil"
-Repository = "https://github.com/navil-dev/navil"
-Documentation = "https://github.com/navil-dev/navil#readme"
-Issues = "https://github.com/navil-dev/navil/issues"
-Changelog = "https://github.com/navil-dev/navil/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/ivanlkf/navil"
+Repository = "https://github.com/ivanlkf/navil"
+Documentation = "https://github.com/ivanlkf/navil#readme"
+Issues = "https://github.com/ivanlkf/navil/issues"
+Changelog = "https://github.com/ivanlkf/navil/blob/main/CHANGELOG.md"
 
 [tool.setuptools.package-data]
-mcp_guardian = ["sample_configs/*.json", "sample_policies/*.yaml", "py.typed"]
+navil = ["sample_configs/*.json", "sample_policies/*.yaml", "py.typed"]
 
 [tool.ruff]
 target-version = "py310"
@@ -81,10 +101,10 @@ disallow_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --cov=mcp_guardian --cov-report=term-missing --tb=short"
+addopts = "-v --cov=navil --cov-report=term-missing --tb=short"
 
 [tool.coverage.run]
-source = ["mcp_guardian"]
+source = ["navil"]
 omit = [
     "*/tests/*",
     "*/test_*.py",

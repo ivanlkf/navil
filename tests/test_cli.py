@@ -9,13 +9,13 @@ from unittest.mock import patch
 
 import pytest
 
-from mcp_guardian.cli import main
+from navil.cli import main
 
 
 @pytest.fixture
 def vulnerable_config_path() -> str:
     """Path to the bundled vulnerable sample config."""
-    p = Path(__file__).parent.parent / "mcp_guardian" / "sample_configs" / "vulnerable_server.json"
+    p = Path(__file__).parent.parent / "navil" / "sample_configs" / "vulnerable_server.json"
     assert p.exists(), f"Sample config not found at {p}"
     return str(p)
 
@@ -23,7 +23,7 @@ def vulnerable_config_path() -> str:
 @pytest.fixture
 def secure_config_path() -> str:
     """Path to the bundled secure sample config."""
-    p = Path(__file__).parent.parent / "mcp_guardian" / "sample_configs" / "secure_server.json"
+    p = Path(__file__).parent.parent / "navil" / "sample_configs" / "secure_server.json"
     assert p.exists(), f"Sample config not found at {p}"
     return str(p)
 
