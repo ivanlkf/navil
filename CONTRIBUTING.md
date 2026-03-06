@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Navil! This document explains how
 
 ```bash
 # Clone the repository
-git clone https://github.com/navil-dev/navil.git
+git clone https://github.com/ivanlkf/navil.git
 cd navil
 
 # Install in development mode
@@ -34,7 +34,7 @@ ruff format .
 We use [mypy](https://mypy-lang.org/) for type checking:
 
 ```bash
-mypy mcp_guardian
+mypy navil
 ```
 
 ## Testing
@@ -48,7 +48,7 @@ pytest
 For coverage:
 
 ```bash
-pytest --cov=mcp_guardian --cov-report=html
+pytest --cov=navil --cov-report=html
 ```
 
 All new code should include tests. We target 80%+ coverage.
@@ -78,12 +78,12 @@ test: add policy engine rate-limiting edge cases
 
 1. Fork the repository and create a branch from `main`
 2. Make your changes and add tests
-3. Ensure all checks pass (`ruff check .`, `mypy mcp_guardian`, `pytest`)
+3. Ensure all checks pass (`ruff check .`, `mypy navil`, `pytest`)
 4. Submit a pull request with a clear description
 
 ## Reporting Issues
 
-Open an issue at [github.com/navil-dev/navil/issues](https://github.com/navil-dev/navil/issues) with:
+Open an issue at [github.com/ivanlkf/navil/issues](https://github.com/ivanlkf/navil/issues) with:
 
 - A clear description of the problem
 - Steps to reproduce

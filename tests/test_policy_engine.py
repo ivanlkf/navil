@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_guardian.policy_engine import PolicyDecision, PolicyEngine
+from navil.policy_engine import PolicyDecision, PolicyEngine
 
 
 @pytest.fixture

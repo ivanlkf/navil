@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from mcp_guardian.credential_manager import CredentialManager, CredentialStatus
+from navil.credential_manager import CredentialManager, CredentialStatus
 
 
 @pytest.fixture

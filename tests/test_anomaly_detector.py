@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+
 import pytest
 
-from mcp_guardian.anomaly_detector import AnomalyType, BehavioralAnomalyDetector
+from navil.anomaly_detector import AnomalyType, BehavioralAnomalyDetector
 
 
 @pytest.fixture
@@ -109,7 +112,19 @@ def test_alerts_filter_by_severity(detector: BehavioralAnomalyDetector) -> None:
 
 
 def test_no_alerts_for_normal_behavior(detector: BehavioralAnomalyDetector) -> None:
-    """Normal behavior should not generate alerts."""
+    """Normal behavior should not generate alerts after baseline is established."""
+    # Build baseline with invocations timestamped 2 hours ago (outside 30-min window)
+    old_time = datetime.now(timezone.utc) - timedelta(hours=2)
+    with patch("navil.anomaly_detector.datetime") as mock_dt:
+        mock_dt.now.return_value = old_time
+        mock_dt.fromisoformat = datetime.fromisoformat
+        mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+        for _ in range(100):
+            detector.record_invocation("agent-a", "logs", "read", duration_ms=50)
+    detector._build_baseline("agent-a")
+    detector.alerts.clear()
+
+    # Now record a few normal invocations at current time — within baseline rate
     for _ in range(3):
         detector.record_invocation("agent-a", "logs", "read", duration_ms=50)
     alerts = detector.get_alerts(agent_name="agent-a")

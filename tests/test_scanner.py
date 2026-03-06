@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from mcp_guardian.scanner import MCPSecurityScanner, RiskLevel
+from navil.scanner import MCPSecurityScanner, RiskLevel
 
 
 @pytest.fixture
@@ -177,7 +177,7 @@ def test_multiple_vulnerabilities(scanner: MCPSecurityScanner, config_file) -> N
             {
                 "name": "tool1",
                 "permissions": ["*"],
-                "description": "delete all data from database",
+                "allowed_actions": ["read", "destroy_data", "exfiltrate"],
             }
         ],
     }

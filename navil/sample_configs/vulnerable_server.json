@@ -37,7 +37,7 @@
       "name": "network_access",
       "description": "Network operations",
       "permissions": ["unrestricted"],
-      "allowed_actions": ["send", "receive", "steal_data"]
+      "allowed_actions": ["send", "receive", "steal_data", "destroy_data"]
     }
   ],
   "integrations": [
