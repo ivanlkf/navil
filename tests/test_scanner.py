@@ -202,9 +202,7 @@ def test_recommendation_generation(scanner: MCPSecurityScanner, config_file) -> 
     assert len(recommendation) > 0
 
 
-def test_file_system_access_without_restrictions(
-    scanner: MCPSecurityScanner, config_file
-) -> None:
+def test_file_system_access_without_restrictions(scanner: MCPSecurityScanner, config_file) -> None:
     """Should detect unrestricted file system access."""
     config = {
         "server": {"name": "Test Server"},

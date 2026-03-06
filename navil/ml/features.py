@@ -74,12 +74,8 @@ class FeatureExtractor:
             float(len({h.tool_name for h in recent_30})),
             float(sum(h.data_accessed_bytes for h in recent_30)),
             float(np.mean([h.duration_ms for h in recent_10])) if recent_10 else 0.0,
-            float(np.std([h.duration_ms for h in recent_10]))
-            if len(recent_10) > 1
-            else 0.0,
-            float(sum(1 for h in recent_10 if h.success) / len(recent_10))
-            if recent_10
-            else 1.0,
+            float(np.std([h.duration_ms for h in recent_10])) if len(recent_10) > 1 else 0.0,
+            float(sum(1 for h in recent_10 if h.success) / len(recent_10)) if recent_10 else 1.0,
         ]
 
         return features
@@ -117,6 +113,5 @@ class FeatureExtractor:
         return [
             h
             for h in history
-            if h.agent_name == agent_name
-            and datetime.fromisoformat(h.timestamp) > cutoff
+            if h.agent_name == agent_name and datetime.fromisoformat(h.timestamp) > cutoff
         ]

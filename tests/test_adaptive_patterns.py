@@ -2,26 +2,19 @@
 
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from navil.adaptive.pattern_store import LearnedPattern, PatternStore
 
 
 class TestLearnedPattern:
     def test_auto_timestamp(self) -> None:
-        p = LearnedPattern(
-            pattern_id="test-1", anomaly_type="RUG_PULL", description="test"
-        )
+        p = LearnedPattern(pattern_id="test-1", anomaly_type="RUG_PULL", description="test")
         assert p.created_at != ""
 
     def test_default_confidence_boost(self) -> None:
-        p = LearnedPattern(
-            pattern_id="test-1", anomaly_type="RUG_PULL", description="test"
-        )
+        p = LearnedPattern(pattern_id="test-1", anomaly_type="RUG_PULL", description="test")
         assert p.confidence_boost == 0.2
 
 

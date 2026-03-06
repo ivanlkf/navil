@@ -21,9 +21,7 @@ class ModelStore:
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
-    def save(
-        self, model: Any, name: str, metadata: dict[str, Any] | None = None
-    ) -> str:
+    def save(self, model: Any, name: str, metadata: dict[str, Any] | None = None) -> str:
         """Save a model with metadata. Returns version ID."""
         import joblib
 
@@ -65,7 +63,7 @@ class ModelStore:
 
     def list_models(self) -> list[dict[str, str]]:
         """List all saved models and their latest versions."""
-        models = []
+        models: list[dict[str, str]] = []
         if not self.base_dir.exists():
             return models
         for model_dir in self.base_dir.iterdir():
@@ -73,7 +71,5 @@ class ModelStore:
                 latest_path = model_dir / "latest.json"
                 if latest_path.exists():
                     info = json.loads(latest_path.read_text())
-                    models.append(
-                        {"name": model_dir.name, "version": info["version"]}
-                    )
+                    models.append({"name": model_dir.name, "version": info["version"]})
         return models

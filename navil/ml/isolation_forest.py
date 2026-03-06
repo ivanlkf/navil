@@ -53,9 +53,7 @@ class IsolationForestDetector:
         import numpy as np
 
         if len(invocations) < 50:
-            raise ValueError(
-                f"Need >= 50 invocations for training, got {len(invocations)}"
-            )
+            raise ValueError(f"Need >= 50 invocations for training, got {len(invocations)}")
 
         X = self.feature_extractor.extract_batch(invocations)
         X_scaled = self.scaler.fit_transform(X)
@@ -70,9 +68,7 @@ class IsolationForestDetector:
             "anomaly_score_std": float(np.std(scores)),
         }
 
-    def score(
-        self, invocation: ToolInvocation, history: list[ToolInvocation]
-    ) -> float:
+    def score(self, invocation: ToolInvocation, history: list[ToolInvocation]) -> float:
         """Score a single invocation. Returns 0.0 (normal) to 1.0 (anomalous)."""
         import numpy as np
 

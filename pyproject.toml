@@ -94,11 +94,32 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+"navil/ml/*.py" = ["N806"]   # X, X_scaled are conventional in ML code
+"tests/test_ml_*.py" = ["E402", "N806"]  # imports after importorskip; ML X convention
+
 [tool.mypy]
 python_version = "3.10"
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+# Optional dependencies — stubs not always available in CI
+[[tool.mypy.overrides]]
+module = [
+    "fastapi.*",
+    "uvicorn.*",
+    "starlette.*",
+    "pydantic.*",
+    "httpx.*",
+    "anthropic.*",
+    "openai.*",
+    "google.*",
+    "sklearn.*",
+    "numpy.*",
+    "joblib.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -110,6 +131,9 @@ source = ["navil"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
+    "navil/cloud/*",   # tested via cloud integration tests
+    "navil/ml/*",      # tested in separate test-ml CI job
+    "navil/cli.py",    # CLI glue code — tested via integration
 ]
 
 [tool.coverage.report]

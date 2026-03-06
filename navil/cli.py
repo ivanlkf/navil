@@ -140,9 +140,7 @@ class MCPGuardianCLI:
         print("\nListing Credentials")
         print("-" * 60)
 
-        credentials = self.credential_manager.list_credentials(
-            agent_name=agent_name, status=status
-        )
+        credentials = self.credential_manager.list_credentials(agent_name=agent_name, status=status)
 
         if not credentials:
             print("No credentials found")
@@ -242,18 +240,13 @@ class MCPGuardianCLI:
         agent = args.agent
         from navil.adaptive.baselines import AgentAdaptiveBaseline
 
-        self.anomaly_detector.adaptive_baselines[agent] = AgentAdaptiveBaseline(
-            agent_name=agent
-        )
+        self.anomaly_detector.adaptive_baselines[agent] = AgentAdaptiveBaseline(agent_name=agent)
         print(f"Adaptive baseline reset for agent: {agent}")
         return 0
 
     def adaptive_export_command(self, args: argparse.Namespace) -> int:
         """Export all adaptive baselines to JSON."""
-        data = {
-            name: bl.to_dict()
-            for name, bl in self.anomaly_detector.adaptive_baselines.items()
-        }
+        data = {name: bl.to_dict() for name, bl in self.anomaly_detector.adaptive_baselines.items()}
         output = json.dumps(data, indent=2)
         if args.output:
             Path(args.output).write_text(output)
@@ -266,16 +259,16 @@ class MCPGuardianCLI:
 
     def feedback_submit_command(self, args: argparse.Namespace) -> int:
         """Submit feedback on an anomaly alert."""
-        from navil.adaptive.feedback import FeedbackEntry, FeedbackLoop
+        from navil.adaptive.feedback import FeedbackLoop
 
         loop = self.anomaly_detector.feedback_loop or FeedbackLoop()
-        entry = FeedbackEntry(
-            alert_id=args.alert_id,
+        loop.submit_feedback(
+            alert_timestamp=datetime.now(timezone.utc).isoformat(),
+            anomaly_type="manual",
+            agent_name=args.alert_id,
             verdict=args.verdict,
             operator_notes=args.notes or "",
-            timestamp=datetime.now(timezone.utc).isoformat(),
         )
-        loop.record(entry)
         print(f"Feedback recorded: {args.verdict} for alert {args.alert_id}")
         return 0
 
@@ -301,7 +294,6 @@ class MCPGuardianCLI:
             )
             return 1
 
-        from navil.ml.features import FeatureExtractor
         from navil.ml.isolation_forest import IsolationForestDetector
 
         invocations = self.anomaly_detector.invocations
@@ -309,10 +301,8 @@ class MCPGuardianCLI:
             print("Error: Need at least 10 recorded invocations to train.", file=sys.stderr)
             return 1
 
-        extractor = FeatureExtractor()
-        features = extractor.transform(invocations)
         detector = IsolationForestDetector()
-        detector.train(features)
+        detector.train(invocations)
         if args.output:
             detector.save(args.output)
             print(f"Model saved to {args.output}")
@@ -330,7 +320,7 @@ class MCPGuardianCLI:
 
         print("\nML Model Status")
         print("-" * 60)
-        print(f"  scikit-learn: installed")
+        print("  scikit-learn: installed")
         print(f"  Recorded invocations: {len(self.anomaly_detector.invocations)}")
         print(f"  Adaptive baselines tracked: {len(self.anomaly_detector.adaptive_baselines)}")
         return 0
@@ -370,7 +360,7 @@ class MCPGuardianCLI:
     def _resolve_llm_api_key(args: argparse.Namespace) -> str | None:
         """Resolve API key from --api-key flag or environment variables."""
         if args.api_key:
-            return args.api_key
+            return str(args.api_key)
         env_map: dict[str, str] = {
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
@@ -407,7 +397,8 @@ class MCPGuardianCLI:
         api_key = self._resolve_llm_api_key(args)
         if not api_key:
             print(
-                f"Error: No API key found. Pass --api-key or set {args.provider.upper()}_API_KEY env var.",
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
                 file=sys.stderr,
             )
             return 1
@@ -440,7 +431,8 @@ class MCPGuardianCLI:
         api_key = self._resolve_llm_api_key(args)
         if not api_key:
             print(
-                f"Error: No API key found. Pass --api-key or set {args.provider.upper()}_API_KEY env var.",
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
                 file=sys.stderr,
             )
             return 1
@@ -474,7 +466,8 @@ class MCPGuardianCLI:
         api_key = self._resolve_llm_api_key(args)
         if not api_key:
             print(
-                f"Error: No API key found. Pass --api-key or set {args.provider.upper()}_API_KEY env var.",
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
                 file=sys.stderr,
             )
             return 1
@@ -511,7 +504,8 @@ class MCPGuardianCLI:
         api_key = self._resolve_llm_api_key(args)
         if not api_key:
             print(
-                f"Error: No API key found. Pass --api-key or set {args.provider.upper()}_API_KEY env var.",
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
                 file=sys.stderr,
             )
             return 1
@@ -537,16 +531,15 @@ def _pentest_print_report(report: dict) -> None:  # type: ignore[type-arg]
     print("  \u2550" * 51)
     print()
     print(f"  {'Scenario':<24} {'Verdict':<10} {'Alerts':<8} {'Severity'}")
-    print(f"  {'\u2500' * 24} {'\u2500' * 10} {'\u2500' * 8} {'\u2500' * 10}")
+    sep = "\u2500"
+    print(f"  {sep * 24} {sep * 10} {sep * 8} {sep * 10}")
 
     for r in report.get("results", []):
         verdict = r.get("verdict", "?")
         mark = "\u2713" if verdict == "PASS" else "\u2717" if verdict == "FAIL" else "~"
         alerts_count = len(r.get("alerts_fired", []))
         severity = r.get("severity", "\u2014")
-        print(
-            f"  {r['scenario']:<24} {mark} {verdict:<8} {alerts_count:<8} {severity}"
-        )
+        print(f"  {r['scenario']:<24} {mark} {verdict:<8} {alerts_count:<8} {severity}")
 
     total = report.get("total_scenarios", 0)
     passed = report.get("passed", 0)
@@ -577,9 +570,7 @@ Examples:
     # Scan command
     scan_parser = subparsers.add_parser("scan", help="Scan MCP configuration file")
     scan_parser.add_argument("config_path", help="Path to MCP configuration file (JSON)")
-    scan_parser.add_argument(
-        "-o", "--output", help="Output file for JSON report", default=None
-    )
+    scan_parser.add_argument("-o", "--output", help="Output file for JSON report", default=None)
     scan_parser.set_defaults(func=lambda cli, args: cli.scan_command(args))
 
     # Credential commands
@@ -624,15 +615,11 @@ Examples:
 
     # Report command
     report_parser = subparsers.add_parser("report", help="Generate security report")
-    report_parser.add_argument(
-        "-o", "--output", help="Output file for JSON report", default=None
-    )
+    report_parser.add_argument("-o", "--output", help="Output file for JSON report", default=None)
     report_parser.set_defaults(func=lambda cli, args: cli.report_command(args))
 
     # ── Adaptive commands ───────────────────────────────────────
-    adaptive_parser = subparsers.add_parser(
-        "adaptive", help="Manage adaptive baselines"
-    )
+    adaptive_parser = subparsers.add_parser("adaptive", help="Manage adaptive baselines")
     adaptive_sub = adaptive_parser.add_subparsers(dest="adaptive_command")
 
     adaptive_status = adaptive_sub.add_parser("status", help="Show baseline status")
@@ -648,9 +635,7 @@ Examples:
     adaptive_export.set_defaults(func=lambda cli, args: cli.adaptive_export_command(args))
 
     # ── Feedback commands ───────────────────────────────────────
-    feedback_parser = subparsers.add_parser(
-        "feedback", help="Submit operator feedback on alerts"
-    )
+    feedback_parser = subparsers.add_parser("feedback", help="Submit operator feedback on alerts")
     feedback_sub = feedback_parser.add_subparsers(dest="feedback_command")
 
     feedback_submit = feedback_sub.add_parser("submit", help="Submit feedback")
@@ -681,30 +666,30 @@ Examples:
     ml_status.set_defaults(func=lambda cli, args: cli.ml_status_command(args))
 
     ml_cluster = ml_sub.add_parser("cluster", help="Cluster agents by behavior")
-    ml_cluster.add_argument(
-        "--n-clusters", default="3", help="Number of clusters (default: 3)"
-    )
+    ml_cluster.add_argument("--n-clusters", default="3", help="Number of clusters (default: 3)")
     ml_cluster.set_defaults(func=lambda cli, args: cli.ml_cluster_command(args))
 
     # ── LLM commands ────────────────────────────────────────────
-    llm_parser = subparsers.add_parser(
-        "llm", help="LLM-powered analysis (requires navil[llm])"
-    )
+    llm_parser = subparsers.add_parser("llm", help="LLM-powered analysis (requires navil[llm])")
     llm_sub = llm_parser.add_subparsers(dest="llm_command")
 
     # Shared LLM args helper
     def _add_llm_args(p: argparse.ArgumentParser) -> None:
         p.add_argument(
-            "--provider", default="anthropic",
+            "--provider",
+            default="anthropic",
             choices=["anthropic", "openai", "gemini", "ollama", "openai_compatible"],
             help="LLM provider (default: anthropic)",
         )
         p.add_argument(
-            "--api-key", default=None,
+            "--api-key",
+            default=None,
             help="API key (or set ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY env var)",
         )
         p.add_argument("--model", default=None, help="Model name override")
-        p.add_argument("--base-url", default=None, help="Custom API base URL (for ollama or openai_compatible)")
+        p.add_argument(
+            "--base-url", default=None, help="Custom API base URL (for ollama or openai_compatible)"
+        )
 
     llm_analyze = llm_sub.add_parser("analyze-config", help="Analyze config with LLM")
     llm_analyze.add_argument("config_path", help="Path to MCP config (JSON)")
@@ -727,24 +712,16 @@ Examples:
     llm_heal.set_defaults(func=lambda cli, args: cli.llm_suggest_healing_command(args))
 
     # ── Proxy commands ─────────────────────────────────────────
-    proxy_parser = subparsers.add_parser(
-        "proxy", help="MCP security proxy (requires navil[cloud])"
-    )
+    proxy_parser = subparsers.add_parser("proxy", help="MCP security proxy (requires navil[cloud])")
     proxy_sub = proxy_parser.add_subparsers(dest="proxy_command")
 
     proxy_start = proxy_sub.add_parser("start", help="Start the MCP security proxy")
     proxy_start.add_argument(
         "--target", required=True, help="Upstream MCP server URL (e.g., http://localhost:3000)"
     )
-    proxy_start.add_argument(
-        "--port", default="9090", help="Port to listen on (default: 9090)"
-    )
-    proxy_start.add_argument(
-        "--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)"
-    )
-    proxy_start.add_argument(
-        "--policy", default=None, help="Path to policy YAML file"
-    )
+    proxy_start.add_argument("--port", default="9090", help="Port to listen on (default: 9090)")
+    proxy_start.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
+    proxy_start.add_argument("--policy", default=None, help="Path to policy YAML file")
     proxy_start.add_argument(
         "--no-auth", action="store_true", help="Disable JWT authentication requirement"
     )
@@ -762,7 +739,8 @@ Examples:
 
         # Load policy if provided
         if args.policy:
-            cli.policy_engine.load_policy(args.policy)
+            cli.policy_engine.policy_file = Path(args.policy)
+            cli.policy_engine._load_policy()
 
         proxy = MCPSecurityProxy(
             target_url=args.target,
@@ -773,7 +751,7 @@ Examples:
         )
         app = create_proxy_app(proxy)
         port = int(args.port)
-        print(f"\n  Navil MCP Security Proxy")
+        print("\n  Navil MCP Security Proxy")
         print(f"  Target: {args.target}")
         print(f"  Listening: http://{args.host}:{port}")
         print(f"  Auth: {'required' if not args.no_auth else 'disabled'}")
@@ -794,23 +772,22 @@ Examples:
         "Omit to run all 11 scenarios.",
     )
     pentest_parser.add_argument(
-        "--json", action="store_true", dest="json_output",
+        "--json",
+        action="store_true",
+        dest="json_output",
         help="Output raw JSON instead of formatted table",
     )
-    pentest_parser.add_argument(
-        "-o", "--output", default=None, help="Save JSON report to file"
-    )
+    pentest_parser.add_argument("-o", "--output", default=None, help="Save JSON report to file")
 
     def _pentest_run(cli: MCPGuardianCLI, args: argparse.Namespace) -> int:
-        from navil.pentest import PentestEngine, SCENARIOS
+        from navil.pentest import SCENARIOS, PentestEngine
 
         engine = PentestEngine(cli.anomaly_detector, cli.policy_engine)
 
         if args.scenario:
             if args.scenario not in SCENARIOS:
                 print(
-                    f"Unknown scenario: {args.scenario}\n"
-                    f"Available: {', '.join(SCENARIOS.keys())}",
+                    f"Unknown scenario: {args.scenario}\nAvailable: {', '.join(SCENARIOS.keys())}",
                     file=sys.stderr,
                 )
                 return 1
@@ -829,12 +806,14 @@ Examples:
 
         if args.json_output:
             import json as _json
+
             print(_json.dumps(report, indent=2))
         else:
             _pentest_print_report(report)
 
         if args.output:
             import json as _json
+
             with open(args.output, "w") as f:
                 _json.dump(report, f, indent=2)
             print(f"\n  Report saved to {args.output}")
@@ -850,15 +829,9 @@ Examples:
     cloud_sub = cloud_parser.add_subparsers(dest="cloud_command")
 
     cloud_serve = cloud_sub.add_parser("serve", help="Start the dashboard server")
-    cloud_serve.add_argument(
-        "--port", default="8484", help="Port to serve on (default: 8484)"
-    )
-    cloud_serve.add_argument(
-        "--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)"
-    )
-    cloud_serve.add_argument(
-        "--no-demo", action="store_true", help="Don't seed demo data"
-    )
+    cloud_serve.add_argument("--port", default="8484", help="Port to serve on (default: 8484)")
+    cloud_serve.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
+    cloud_serve.add_argument("--no-demo", action="store_true", help="Don't seed demo data")
 
     def _cloud_serve(cli: MCPGuardianCLI, args: argparse.Namespace) -> int:
         try:
@@ -888,7 +861,7 @@ Examples:
 
     try:
         if hasattr(args, "func"):
-            return args.func(cli, args)
+            return int(args.func(cli, args))
         else:
             parser.print_help()
             return 1

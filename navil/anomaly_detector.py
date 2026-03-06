@@ -13,14 +13,13 @@ Covers all 14 SAFE-MCP attack tactics:
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +53,10 @@ class ToolInvocation:
     duration_ms: int
     data_accessed_bytes: int
     success: bool
-    location: Optional[str] = None
+    location: str | None = None
     # Proxy-enriched fields for SAFE-MCP detection
-    target_server: Optional[str] = None  # MCP server URL being called
-    arguments_hash: Optional[str] = None  # SHA-256 of tool call arguments
+    target_server: str | None = None  # MCP server URL being called
+    arguments_hash: str | None = None  # SHA-256 of tool call arguments
     arguments_size_bytes: int = 0  # Size of serialized arguments
     response_size_bytes: int = 0  # Size of tool response
     is_list_tools: bool = False  # Whether this was a tools/list call
@@ -201,8 +200,7 @@ class BehavioralAnomalyDetector:
         agent_invocations = [
             inv
             for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff_time
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff_time
         ]
 
         if not agent_invocations:
@@ -235,8 +233,7 @@ class BehavioralAnomalyDetector:
 
         self.baselines[agent_name] = baseline
         logger.info(
-            f"Built baseline for agent {agent_name}: "
-            f"{baseline['invocation_count']} invocations"
+            f"Built baseline for agent {agent_name}: {baseline['invocation_count']} invocations"
         )
 
     def _detect_rug_pull(self, agent_name: str) -> None:
@@ -250,8 +247,7 @@ class BehavioralAnomalyDetector:
         recent = [
             inv
             for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff_time
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff_time
         ]
 
         if not recent or len(recent) < 5:
@@ -300,8 +296,7 @@ class BehavioralAnomalyDetector:
         recent = [
             inv
             for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff_time
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff_time
         ]
 
         if not recent:
@@ -321,7 +316,9 @@ class BehavioralAnomalyDetector:
                     f"(baseline: {baseline_data / (1024 * 1024):.2f}MB)"
                 ),
                 evidence=[f"Total data accessed: {total_data} bytes"],
-                recommended_action="Immediately review data access and revoke credentials if unauthorized",
+                recommended_action=(
+                    "Immediately review data access and revoke credentials if unauthorized"
+                ),
             )
 
     def _detect_rate_spike(self, agent_name: str) -> None:
@@ -335,8 +332,7 @@ class BehavioralAnomalyDetector:
         recent = [
             inv
             for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff_time
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff_time
         ]
 
         # Estimate baseline rate (invocations per 30 min)
@@ -382,9 +378,7 @@ class BehavioralAnomalyDetector:
         ]
 
         baseline_sensitive = [
-            tool
-            for tool in baseline.get("common_tools", [])
-            if tool[0] in sensitive_tools
+            tool for tool in baseline.get("common_tools", []) if tool[0] in sensitive_tools
         ]
 
         # If accessing new sensitive tools
@@ -393,10 +387,10 @@ class BehavioralAnomalyDetector:
                 anomaly_type=AnomalyType.PRIVILEGE_ESCALATION,
                 severity="CRITICAL",
                 agent_name=agent_name,
-                description="Agent accessing sensitive administrative tools without baseline history",
-                evidence=[
-                    f"Sensitive tools accessed: {[inv.tool_name for inv in recent]}"
-                ],
+                description=(
+                    "Agent accessing sensitive administrative tools without baseline history"
+                ),
+                evidence=[f"Sensitive tools accessed: {[inv.tool_name for inv in recent]}"],
                 recommended_action="Immediately review and revoke access if unauthorized",
             )
 
@@ -406,8 +400,7 @@ class BehavioralAnomalyDetector:
         recent = [
             inv
             for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff_time
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff_time
         ]
 
         if not recent:
@@ -436,7 +429,8 @@ class BehavioralAnomalyDetector:
         """Detect tool discovery probing (excessive tools/list calls)."""
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
         list_calls = [
-            inv for inv in self.invocations
+            inv
+            for inv in self.invocations
             if inv.agent_name == agent_name
             and inv.is_list_tools
             and datetime.fromisoformat(inv.timestamp) > cutoff
@@ -448,8 +442,7 @@ class BehavioralAnomalyDetector:
                 severity="MEDIUM",
                 agent_name=agent_name,
                 description=(
-                    f"Agent called tools/list {len(list_calls)} times in 10 minutes "
-                    f"(threshold: 5)"
+                    f"Agent called tools/list {len(list_calls)} times in 10 minutes (threshold: 5)"
                 ),
                 evidence=[
                     f"tools/list call count: {len(list_calls)}",
@@ -463,9 +456,9 @@ class BehavioralAnomalyDetector:
         """Detect scheduled/bot-like reconnection patterns."""
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         recent = [
-            inv for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff
+            inv
+            for inv in self.invocations
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff
         ]
 
         if len(recent) < 6:
@@ -474,8 +467,7 @@ class BehavioralAnomalyDetector:
         # Calculate inter-call intervals
         timestamps = sorted(datetime.fromisoformat(inv.timestamp) for inv in recent)
         intervals = [
-            (timestamps[i + 1] - timestamps[i]).total_seconds()
-            for i in range(len(timestamps) - 1)
+            (timestamps[i + 1] - timestamps[i]).total_seconds() for i in range(len(timestamps) - 1)
         ]
 
         if len(intervals) < 5:
@@ -502,7 +494,9 @@ class BehavioralAnomalyDetector:
                     f"Std deviation: {std_dev:.2f}s",
                     f"Sample count: {len(intervals)}",
                 ],
-                recommended_action="Investigate automated reconnection — possible persistence mechanism",
+                recommended_action=(
+                    "Investigate automated reconnection \u2014 possible persistence mechanism"
+                ),
             )
 
     _BASE64_RE = re.compile(r"^[A-Za-z0-9+/]{50,}={0,2}$")
@@ -515,9 +509,9 @@ class BehavioralAnomalyDetector:
         """Detect encoding tricks and prompt injection in tool arguments."""
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
         recent = [
-            inv for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff
+            inv
+            for inv in self.invocations
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff
         ]
 
         for inv in recent:
@@ -526,16 +520,13 @@ class BehavioralAnomalyDetector:
             # Check for suspiciously large arguments
             if inv.arguments_size_bytes > 5000:
                 evidence.append(
-                    f"Large argument payload: {inv.arguments_size_bytes} bytes "
-                    f"in {inv.tool_name}"
+                    f"Large argument payload: {inv.arguments_size_bytes} bytes in {inv.tool_name}"
                 )
 
             # Check arguments_hash for base64 patterns (hash itself is not b64,
             # but if we have the raw hash we can flag size + repeated patterns)
             if inv.arguments_hash and self._BASE64_RE.match(inv.arguments_hash):
-                evidence.append(
-                    f"Possible base64-encoded payload in {inv.tool_name}"
-                )
+                evidence.append(f"Possible base64-encoded payload in {inv.tool_name}")
 
             if evidence:
                 self._create_alert(
@@ -545,8 +536,7 @@ class BehavioralAnomalyDetector:
                     description="Suspicious tool argument encoding detected",
                     evidence=evidence,
                     recommended_action=(
-                        "Inspect tool call arguments for prompt injection "
-                        "or encoded payloads"
+                        "Inspect tool call arguments for prompt injection or encoded payloads"
                     ),
                 )
 
@@ -554,7 +544,8 @@ class BehavioralAnomalyDetector:
         """Detect cross-server tool chaining (agent talking to multiple servers)."""
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
         recent = [
-            inv for inv in self.invocations
+            inv
+            for inv in self.invocations
             if inv.agent_name == agent_name
             and inv.target_server
             and datetime.fromisoformat(inv.timestamp) > cutoff
@@ -567,16 +558,14 @@ class BehavioralAnomalyDetector:
                 severity="HIGH",
                 agent_name=agent_name,
                 description=(
-                    f"Agent communicating with {len(servers)} distinct MCP servers "
-                    f"in 5 minutes"
+                    f"Agent communicating with {len(servers)} distinct MCP servers in 5 minutes"
                 ),
                 evidence=[
                     f"Servers: {', '.join(sorted(servers))}",
                     f"Total calls: {len(recent)}",
                 ],
                 recommended_action=(
-                    "Investigate cross-server tool chaining — "
-                    "possible lateral movement"
+                    "Investigate cross-server tool chaining — possible lateral movement"
                 ),
             )
 
@@ -584,9 +573,9 @@ class BehavioralAnomalyDetector:
         """Detect beaconing patterns (periodic small data exfiltration)."""
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
         recent = [
-            inv for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff
+            inv
+            for inv in self.invocations
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff
         ]
 
         if len(recent) < 5:
@@ -595,8 +584,7 @@ class BehavioralAnomalyDetector:
         # Check for beaconing: regular intervals + consistent small payloads
         timestamps = sorted(datetime.fromisoformat(inv.timestamp) for inv in recent)
         intervals = [
-            (timestamps[i + 1] - timestamps[i]).total_seconds()
-            for i in range(len(timestamps) - 1)
+            (timestamps[i + 1] - timestamps[i]).total_seconds() for i in range(len(timestamps) - 1)
         ]
 
         if len(intervals) < 4:
@@ -613,8 +601,8 @@ class BehavioralAnomalyDetector:
             resp_std = statistics.stdev(response_sizes) if len(response_sizes) > 1 else 0.0
             resp_mean = statistics.mean(response_sizes)
             has_consistent_responses = (
-                resp_mean < 1024 and resp_std < resp_mean * 0.3
-            ) if resp_mean > 0 else False
+                (resp_mean < 1024 and resp_std < resp_mean * 0.3) if resp_mean > 0 else False
+            )
 
         if is_regular and has_consistent_responses:
             self._create_alert(
@@ -640,7 +628,8 @@ class BehavioralAnomalyDetector:
         """Detect unknown/tampered tool registration (tool injection)."""
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         recent = [
-            inv for inv in self.invocations
+            inv
+            for inv in self.invocations
             if inv.agent_name == agent_name
             and not inv.is_list_tools
             and inv.target_server
@@ -657,8 +646,7 @@ class BehavioralAnomalyDetector:
                         severity="CRITICAL",
                         agent_name=agent_name,
                         description=(
-                            f"Agent called unregistered tool '{inv.tool_name}' "
-                            f"on server {server}"
+                            f"Agent called unregistered tool '{inv.tool_name}' on server {server}"
                         ),
                         evidence=[
                             f"Tool: {inv.tool_name}",
@@ -678,9 +666,7 @@ class BehavioralAnomalyDetector:
         the legitimate tool set for supply chain detection.
         """
         self.registered_tools[server_url] = set(tool_names)
-        logger.info(
-            f"Registered {len(tool_names)} tools for server {server_url}"
-        )
+        logger.info(f"Registered {len(tool_names)} tools for server {server_url}")
 
     def _create_alert(
         self,
@@ -703,9 +689,7 @@ class BehavioralAnomalyDetector:
         )
 
         self.alerts.append(alert)
-        logger.warning(
-            f"ANOMALY DETECTED: {alert.anomaly_type} for {agent_name} - {description}"
-        )
+        logger.warning(f"ANOMALY DETECTED: {alert.anomaly_type} for {agent_name} - {description}")
 
     def get_alerts(
         self, agent_name: str | None = None, severity: str | None = None
@@ -764,16 +748,12 @@ class BehavioralAnomalyDetector:
 
     # --- Adaptive AI Methods (Level 1) ---
 
-    def _update_adaptive_baseline(
-        self, agent_name: str, invocation: ToolInvocation
-    ) -> None:
+    def _update_adaptive_baseline(self, agent_name: str, invocation: ToolInvocation) -> None:
         """Update the adaptive EMA baseline for an agent. O(1) per call."""
         from navil.adaptive.baselines import AgentAdaptiveBaseline
 
         if agent_name not in self.adaptive_baselines:
-            self.adaptive_baselines[agent_name] = AgentAdaptiveBaseline(
-                agent_name=agent_name
-            )
+            self.adaptive_baselines[agent_name] = AgentAdaptiveBaseline(agent_name=agent_name)
 
         ab = self.adaptive_baselines[agent_name]
         ab.record_observation(
@@ -809,8 +789,7 @@ class BehavioralAnomalyDetector:
         recent_count = sum(
             1
             for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff
         )
         if ab.rate_ema.count > 0 and ab.rate_ema.mean > 0:
             z = ab.rate_ema.z_score(float(recent_count))
@@ -819,9 +798,7 @@ class BehavioralAnomalyDetector:
                 anomaly_type=AnomalyType.RATE_SPIKE.value,
                 confidence=confidence,
                 z_score=z,
-                evidence=[
-                    f"Recent rate: {recent_count}, baseline mean: {ab.rate_ema.mean:.1f}"
-                ],
+                evidence=[f"Recent rate: {recent_count}, baseline mean: {ab.rate_ema.mean:.1f}"],
                 contributing_factors={"rate_z_score": z},
             )
             scores.append(score.to_dict())
@@ -831,8 +808,7 @@ class BehavioralAnomalyDetector:
         recent_data = sum(
             inv.data_accessed_bytes
             for inv in self.invocations
-            if inv.agent_name == agent_name
-            and datetime.fromisoformat(inv.timestamp) > cutoff_1h
+            if inv.agent_name == agent_name and datetime.fromisoformat(inv.timestamp) > cutoff_1h
         )
         if ab.data_volume_ema.count > 0 and ab.data_volume_ema.mean > 0:
             z = ab.data_volume_ema.z_score(float(recent_data))
@@ -842,7 +818,8 @@ class BehavioralAnomalyDetector:
                 confidence=confidence,
                 z_score=z,
                 evidence=[
-                    f"Recent data: {recent_data} bytes, baseline mean: {ab.data_volume_ema.mean:.0f}"
+                    f"Recent data: {recent_data} bytes, "
+                    f"baseline mean: {ab.data_volume_ema.mean:.0f}"
                 ],
                 contributing_factors={"data_z_score": z},
             )
@@ -867,6 +844,8 @@ class BehavioralAnomalyDetector:
                     if s.get("anomaly_type") == pattern.anomaly_type:
                         boosted = min(1.0, s["confidence"] + pattern.confidence_boost * match_score)
                         s["confidence"] = boosted
-                        s["evidence"].append(f"Pattern match: {pattern.pattern_id} (score={match_score:.2f})")
+                        s["evidence"].append(
+                            f"Pattern match: {pattern.pattern_id} (score={match_score:.2f})"
+                        )
 
         return scores

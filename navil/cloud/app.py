@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -21,6 +22,13 @@ logger = logging.getLogger(__name__)
 
 DASHBOARD_DIR = Path(__file__).resolve().parent.parent.parent / "dashboard" / "dist"
 
+# ALLOWED_ORIGINS: comma-separated allowed origins.
+# Defaults to "*" when unset (local dev / no Clerk).
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+_allow_origins: list[str] = (
+    [o.strip() for o in _origins_env.split(",") if o.strip()] if _origins_env else ["*"]
+)
+
 
 def create_app(with_demo: bool = True) -> FastAPI:
     """Create the FastAPI application."""
@@ -32,7 +40,7 @@ def create_app(with_demo: bool = True) -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -62,6 +70,7 @@ def create_app(with_demo: bool = True) -> FastAPI:
                 return FileResponse(str(file_path))
             return FileResponse(str(DASHBOARD_DIR / "index.html"))
     else:
+
         @app.get("/")
         def no_frontend() -> dict[str, str]:
             return {

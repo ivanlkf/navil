@@ -5,7 +5,8 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+from typing import Any
 
 from navil.cloud.state import AppState
 
@@ -17,23 +18,46 @@ def seed_demo_data(state: AppState) -> None:
     state.demo_seeded = True
 
     rng = random.Random(42)
-    now = datetime.now(timezone.utc)
+    datetime.now(timezone.utc)
 
-    agents = {
-        "data-reader": {"tools": ["logs", "metrics", "files"], "normal_duration": 30, "normal_data": 200},
-        "code-assistant": {"tools": ["code_search", "file_edit", "terminal"], "normal_duration": 80, "normal_data": 500},
-        "admin-bot": {"tools": ["admin_panel", "user_mgmt", "config"], "normal_duration": 120, "normal_data": 1000},
-        "monitoring-agent": {"tools": ["logs", "alerts", "health_check"], "normal_duration": 15, "normal_data": 50},
-        "deploy-agent": {"tools": ["docker", "kubernetes", "ci_pipeline"], "normal_duration": 200, "normal_data": 2000},
+    agents: dict[str, dict[str, Any]] = {
+        "data-reader": {
+            "tools": ["logs", "metrics", "files"],
+            "normal_duration": 30,
+            "normal_data": 200,
+        },
+        "code-assistant": {
+            "tools": ["code_search", "file_edit", "terminal"],
+            "normal_duration": 80,
+            "normal_data": 500,
+        },
+        "admin-bot": {
+            "tools": ["admin_panel", "user_mgmt", "config"],
+            "normal_duration": 120,
+            "normal_data": 1000,
+        },
+        "monitoring-agent": {
+            "tools": ["logs", "alerts", "health_check"],
+            "normal_duration": 15,
+            "normal_data": 50,
+        },
+        "deploy-agent": {
+            "tools": ["docker", "kubernetes", "ci_pipeline"],
+            "normal_duration": 200,
+            "normal_data": 2000,
+        },
     }
 
     # Record normal invocations (builds baselines)
     for agent_name, profile in agents.items():
         n_normal = rng.randint(20, 40)
-        for i in range(n_normal):
-            tool = rng.choice(profile["tools"])
-            duration = max(5, int(rng.gauss(profile["normal_duration"], profile["normal_duration"] * 0.3)))
-            data = max(0, int(rng.gauss(profile["normal_data"], profile["normal_data"] * 0.3)))
+        for _i in range(n_normal):
+            tools: list[str] = profile["tools"]  # type: ignore[assignment]
+            tool = rng.choice(tools)
+            dur_mean = float(profile["normal_duration"])
+            data_mean = float(profile["normal_data"])
+            duration = max(5, int(rng.gauss(dur_mean, dur_mean * 0.3)))
+            data = max(0, int(rng.gauss(data_mean, data_mean * 0.3)))
             state.anomaly_detector.record_invocation(
                 agent_name=agent_name,
                 tool_name=tool,
@@ -89,9 +113,7 @@ def seed_demo_data(state: AppState) -> None:
     # Revoke one credential (the admin-bot's)
     creds = state.credential_manager.list_credentials(agent_name="admin-bot")
     if creds:
-        state.credential_manager.revoke_credential(
-            creds[0]["token_id"], reason="Security review"
-        )
+        state.credential_manager.revoke_credential(creds[0]["token_id"], reason="Security review")
 
     # Run some policy checks
     state.policy_engine.check_tool_call("data-reader", "logs", "read")

@@ -64,13 +64,16 @@ def _call_llm(fn: Any, *args: Any, **kwargs: Any) -> Any:
             error_type = "rate_limit"
             status = 429
             message = "Rate limit exceeded. Please wait a moment and try again."
-        elif ("quota" in err_lower or "billing" in err_lower
-              or "exceeded" in err_lower and "limit" in err_lower):
+        elif (
+            "quota" in err_lower
+            or "billing" in err_lower
+            or "exceeded" in err_lower
+            and "limit" in err_lower
+        ):
             error_type = "quota"
             status = 503
             message = "API quota exceeded. Check your provider account or wait for quota reset."
-        elif ("auth" in err_lower or "api_key" in err_lower
-              or "401" in err_str or "403" in err_str):
+        elif "auth" in err_lower or "api_key" in err_lower or "401" in err_str or "403" in err_str:
             error_type = "auth"
             status = 503
             message = "API key is invalid or expired. Check your key in Settings."
@@ -83,6 +86,7 @@ def _call_llm(fn: Any, *args: Any, **kwargs: Any) -> Any:
 
 
 # ── Request / Response Models ───────────────────────────────
+
 
 class ScanRequest(BaseModel):
     config: dict[str, Any]
@@ -176,6 +180,7 @@ def _require_pro_or_byok(request: Request) -> None:
 
 # ── Overview ────────────────────────────────────────────────
 
+
 @router.get("/overview")
 def get_overview() -> dict[str, Any]:
     s = AppState.get()
@@ -201,12 +206,14 @@ def get_overview() -> dict[str, Any]:
             elif sev == "LOW" and max_sev == "OK":
                 max_sev = "LOW"
         bl = s.anomaly_detector.adaptive_baselines.get(agent)
-        agent_health.append({
-            "name": agent,
-            "status": max_sev,
-            "observations": bl.duration_ema.count if bl else 0,
-            "alert_count": len(agent_alerts),
-        })
+        agent_health.append(
+            {
+                "name": agent,
+                "status": max_sev,
+                "observations": bl.duration_ema.count if bl else 0,
+                "alert_count": len(agent_alerts),
+            }
+        )
 
     return {
         "total_agents": len(agents),
@@ -221,6 +228,7 @@ def get_overview() -> dict[str, Any]:
 
 
 # ── Scanner ─────────────────────────────────────────────────
+
 
 @router.post("/scan")
 def scan_config(req: ScanRequest) -> dict[str, Any]:
@@ -237,6 +245,7 @@ def scan_config(req: ScanRequest) -> dict[str, Any]:
 
 # ── Agents ──────────────────────────────────────────────────
 
+
 @router.get("/agents")
 def list_agents() -> list[dict[str, Any]]:
     s = AppState.get()
@@ -244,14 +253,16 @@ def list_agents() -> list[dict[str, Any]]:
     result = []
     for name, bl in s.anomaly_detector.adaptive_baselines.items():
         agent_alerts = [a for a in alerts if a.get("agent") == name]
-        result.append({
-            "name": name,
-            "observations": bl.duration_ema.count,
-            "alert_count": len(agent_alerts),
-            "known_tools": list(bl.known_tools),
-            "duration_mean": round(bl.duration_ema.mean, 1),
-            "data_volume_mean": round(bl.data_volume_ema.mean, 1),
-        })
+        result.append(
+            {
+                "name": name,
+                "observations": bl.duration_ema.count,
+                "alert_count": len(agent_alerts),
+                "known_tools": list(bl.known_tools),
+                "duration_mean": round(bl.duration_ema.mean, 1),
+                "data_volume_mean": round(bl.data_volume_ema.mean, 1),
+            }
+        )
     return result
 
 
@@ -270,6 +281,7 @@ def get_agent_detail(name: str) -> dict[str, Any]:
 
 # ── Alerts ──────────────────────────────────────────────────
 
+
 @router.get("/alerts")
 def list_alerts(severity: str | None = None, agent: str | None = None) -> list[dict[str, Any]]:
     s = AppState.get()
@@ -278,6 +290,7 @@ def list_alerts(severity: str | None = None, agent: str | None = None) -> list[d
 
 
 # ── Invocations ─────────────────────────────────────────────
+
 
 @router.post("/invocations")
 def record_invocation(req: InvocationRequest) -> dict[str, str]:
@@ -294,6 +307,7 @@ def record_invocation(req: InvocationRequest) -> dict[str, str]:
 
 
 # ── Credentials ─────────────────────────────────────────────
+
 
 @router.get("/credentials")
 def list_credentials(agent: str | None = None) -> list[dict[str, Any]]:
@@ -323,6 +337,7 @@ def revoke_credential(token_id: str) -> dict[str, str]:
 
 # ── Policy ──────────────────────────────────────────────────
 
+
 @router.post("/policy/check")
 def check_policy(req: PolicyCheckRequest) -> dict[str, Any]:
     s = AppState.get()
@@ -342,6 +357,7 @@ def get_decisions() -> list[dict[str, Any]]:
 
 # ── Feedback ────────────────────────────────────────────────
 
+
 @router.post("/feedback")
 def submit_feedback(req: FeedbackRequest) -> dict[str, str]:
     s = AppState.get()
@@ -349,7 +365,7 @@ def submit_feedback(req: FeedbackRequest) -> dict[str, str]:
         alert_timestamp=req.alert_timestamp,
         anomaly_type=req.anomaly_type,
         agent_name=req.agent_name,
-        verdict=req.verdict,
+        verdict=req.verdict,  # type: ignore[arg-type]
         operator_notes=req.operator_notes,
     )
     return {"status": "recorded"}
@@ -362,6 +378,7 @@ def get_feedback_stats() -> dict[str, Any]:
 
 
 # ── Settings ───────────────────────────────────────────────
+
 
 @router.get("/settings/llm")
 def get_llm_settings() -> dict[str, Any]:
@@ -460,6 +477,7 @@ def test_llm_connection(req: LLMTestRequest) -> dict[str, Any]:
 
 # ── Billing ────────────────────────────────────────────────
 
+
 @router.get("/billing/plan")
 def get_user_plan(request: Request) -> dict[str, Any]:
     user_id = _get_user_id(request)
@@ -485,6 +503,7 @@ def set_user_plan(req: SetPlanRequest, request: Request) -> dict[str, Any]:
 
 
 # ── LLM-Powered Features ──────────────────────────────────
+
 
 @router.get("/llm/status")
 def llm_status() -> dict[str, Any]:
@@ -569,7 +588,9 @@ def apply_action(req: ApplyActionRequest, request: Request) -> dict[str, Any]:
     s = AppState.get()
     _require_llm(s)
     _require_pro_or_byok(request)
-    success = _call_llm(s.self_healing.apply_action, req.action, s.policy_engine, s.anomaly_detector)
+    success = _call_llm(
+        s.self_healing.apply_action, req.action, s.policy_engine, s.anomaly_detector
+    )
     s.billing.increment_llm_calls(_get_user_id(request))
     return {"success": success, "action": req.action}
 

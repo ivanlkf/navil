@@ -1,7 +1,8 @@
 """
 Agent Credential Lifecycle Manager
 
-Manages generation, rotation, revocation, and lifecycle of credentials for agent-to-service communication.
+Manages generation, rotation, revocation, and lifecycle of credentials
+for agent-to-service communication.
 Implements Just-In-Time (JIT) credential provisioning and comprehensive audit logging.
 """
 
@@ -14,7 +15,7 @@ import secrets
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import jwt
 
@@ -39,7 +40,7 @@ class CredentialAuditLog:
     agent_name: str
     operation: str  # issued, rotated, revoked, accessed, expired
     details: str
-    ip_address: Optional[str] = None
+    ip_address: str | None = None
 
 
 @dataclass
@@ -54,7 +55,7 @@ class Credential:
     expires_at: str
     status: str
     rotation_count: int = 0
-    last_used: Optional[str] = None
+    last_used: str | None = None
     used_count: int = 0
     secret_hash: str = ""  # Hash of token for verification without storing plaintext
 
@@ -183,8 +184,7 @@ class CredentialManager:
             scope=old_credential.scope,
             ttl_seconds=int(
                 (
-                    datetime.fromisoformat(old_credential.expires_at)
-                    - datetime.now(timezone.utc)
+                    datetime.fromisoformat(old_credential.expires_at) - datetime.now(timezone.utc)
                 ).total_seconds()
             ),
         )
@@ -257,9 +257,9 @@ class CredentialManager:
 
             return payload
         except jwt.ExpiredSignatureError:
-            raise jwt.InvalidTokenError("Token has expired")
+            raise jwt.InvalidTokenError("Token has expired")  # noqa: B904
         except jwt.InvalidTokenError as e:
-            raise jwt.InvalidTokenError(f"Invalid token: {e!s}")
+            raise jwt.InvalidTokenError(f"Invalid token: {e!s}")  # noqa: B904
 
     def record_usage(self, token_id: str, ip_address: str | None = None) -> None:
         """

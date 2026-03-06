@@ -147,24 +147,23 @@ class PolicyEngine:
             return False, reason
 
         # Check data sensitivity
-        if data_sensitivity:
-            if not self._is_agent_allowed_sensitivity(agent_name, data_sensitivity):
-                reason = f"Agent not authorized for {data_sensitivity} data access"
-                self._log_decision(
-                    decision=PolicyDecision.DENY,
-                    rule="INSUFFICIENT_CLEARANCE",
-                    reason=reason,
-                    severity="CRITICAL",
-                    agent_name=agent_name,
-                    tool_name=tool_name,
-                    action=action,
-                )
-                return False, reason
+        if data_sensitivity and not self._is_agent_allowed_sensitivity(
+            agent_name, data_sensitivity
+        ):
+            reason = f"Agent not authorized for {data_sensitivity} data access"
+            self._log_decision(
+                decision=PolicyDecision.DENY,
+                rule="INSUFFICIENT_CLEARANCE",
+                reason=reason,
+                severity="CRITICAL",
+                agent_name=agent_name,
+                tool_name=tool_name,
+                action=action,
+            )
+            return False, reason
 
         # Check for suspicious patterns
-        suspicious, pattern = self._detect_suspicious_patterns(
-            tool_name, action, params or {}
-        )
+        suspicious, pattern = self._detect_suspicious_patterns(tool_name, action, params or {})
         if suspicious:
             reason = f"Suspicious pattern detected: {pattern}"
             self._log_decision(
@@ -201,10 +200,7 @@ class PolicyEngine:
 
         # Check whitelist
         allowed_tools = agent_policy.get("tools_allowed", [])
-        if allowed_tools and tool_name not in allowed_tools and "*" not in allowed_tools:
-            return False
-
-        return True
+        return not (allowed_tools and tool_name not in allowed_tools and "*" not in allowed_tools)
 
     def _is_action_allowed(self, agent_name: str, tool_name: str, action: str) -> bool:
         """Check if action is allowed on tool."""
@@ -222,10 +218,7 @@ class PolicyEngine:
 
         # Check agent-specific action restrictions
         action_restrictions = agent_policy.get("action_restrictions", {}).get(tool_name, [])
-        if action in action_restrictions:
-            return False
-
-        return True
+        return action not in action_restrictions
 
     def _check_rate_limit(self, agent_name: str, tool_name: str) -> bool:
         """Check if rate limit is exceeded."""
@@ -276,10 +269,13 @@ class PolicyEngine:
         suspicious_patterns = self.policy.get("suspicious_patterns", [])
 
         for pattern in suspicious_patterns:
-            if pattern.get("tool") == tool_name or pattern.get("tool") == "*":
-                if action in pattern.get("actions", []):
-                    if self._matches_pattern_conditions(pattern, params):
-                        return True, pattern.get("name", "Unknown pattern")
+            tool_match = pattern.get("tool") in (tool_name, "*")
+            if (
+                tool_match
+                and action in pattern.get("actions", [])
+                and self._matches_pattern_conditions(pattern, params)
+            ):
+                return True, pattern.get("name", "Unknown pattern")
 
         # Check for common attack patterns
         param_str = str(params).lower()
@@ -299,9 +295,7 @@ class PolicyEngine:
 
         return False, ""
 
-    def _matches_pattern_conditions(
-        self, pattern: dict[str, Any], params: dict[str, Any]
-    ) -> bool:
+    def _matches_pattern_conditions(self, pattern: dict[str, Any], params: dict[str, Any]) -> bool:
         """Check if parameters match pattern conditions."""
         conditions = pattern.get("conditions", {})
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -53,12 +53,14 @@ class TestParseJsonRPC:
     """JSON-RPC 2.0 parsing tests."""
 
     def test_parse_valid_tools_call(self) -> None:
-        body = json.dumps({
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": {"name": "read_file", "arguments": {"path": "/tmp/test"}},
-            "id": 1,
-        }).encode()
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {"name": "read_file", "arguments": {"path": "/tmp/test"}},
+                "id": 1,
+            }
+        ).encode()
 
         parsed = MCPSecurityProxy.parse_jsonrpc(body)
         assert parsed["method"] == "tools/call"
@@ -66,11 +68,13 @@ class TestParseJsonRPC:
         assert parsed["id"] == 1
 
     def test_parse_tools_list(self) -> None:
-        body = json.dumps({
-            "jsonrpc": "2.0",
-            "method": "tools/list",
-            "id": 2,
-        }).encode()
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "id": 2,
+            }
+        ).encode()
 
         parsed = MCPSecurityProxy.parse_jsonrpc(body)
         assert parsed["method"] == "tools/list"
@@ -119,7 +123,9 @@ class TestIdentity:
 class TestHandleJsonRPC:
     @pytest.mark.asyncio
     async def test_auth_required_blocks_unauthenticated(
-        self, detector: BehavioralAnomalyDetector, cred_manager: CredentialManager,
+        self,
+        detector: BehavioralAnomalyDetector,
+        cred_manager: CredentialManager,
     ) -> None:
         """When require_auth=True, missing identity returns error -32003."""
         proxy = MCPSecurityProxy(
@@ -130,12 +136,14 @@ class TestHandleJsonRPC:
             require_auth=True,
         )
 
-        body = json.dumps({
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": {"name": "read"},
-            "id": 1,
-        }).encode()
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {"name": "read"},
+                "id": 1,
+            }
+        ).encode()
 
         result = await proxy.handle_jsonrpc(body, {})
         assert result["error"]["code"] == -32003
@@ -149,12 +157,14 @@ class TestHandleJsonRPC:
     @pytest.mark.asyncio
     async def test_tools_call_forwarded(self, proxy: MCPSecurityProxy) -> None:
         """Successful tools/call should forward and record invocation."""
-        body = json.dumps({
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": {"name": "read_file", "arguments": {"path": "/tmp"}},
-            "id": 1,
-        }).encode()
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {"name": "read_file", "arguments": {"path": "/tmp"}},
+                "id": 1,
+            }
+        ).encode()
 
         upstream_response = {
             "jsonrpc": "2.0",
@@ -175,11 +185,13 @@ class TestHandleJsonRPC:
     @pytest.mark.asyncio
     async def test_tools_list_registers_tools(self, proxy: MCPSecurityProxy) -> None:
         """tools/list should register tool names for supply chain detection."""
-        body = json.dumps({
-            "jsonrpc": "2.0",
-            "method": "tools/list",
-            "id": 1,
-        }).encode()
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "id": 1,
+            }
+        ).encode()
 
         upstream_response = {
             "jsonrpc": "2.0",

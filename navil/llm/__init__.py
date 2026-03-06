@@ -41,9 +41,7 @@ def _repair_truncated_json(text: str) -> str:
             continue
         if ch in "{[":
             stack.append(ch)
-        elif ch == "}" and stack and stack[-1] == "{":
-            stack.pop()
-        elif ch == "]" and stack and stack[-1] == "[":
+        elif ch == "}" and stack and stack[-1] == "{" or ch == "]" and stack and stack[-1] == "[":
             stack.pop()
 
     # Close any remaining open brackets/braces

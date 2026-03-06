@@ -69,9 +69,7 @@ def test_data_exfiltration_detection(detector: BehavioralAnomalyDetector) -> Non
             "agent-a", "logs", "read", duration_ms=50, data_accessed_bytes=10000
         )
     alerts = detector.get_alerts(agent_name="agent-a")
-    exfil_alerts = [
-        a for a in alerts if a["anomaly_type"] == AnomalyType.DATA_EXFILTRATION.value
-    ]
+    exfil_alerts = [a for a in alerts if a["anomaly_type"] == AnomalyType.DATA_EXFILTRATION.value]
     assert len(exfil_alerts) >= 1
 
 
@@ -95,9 +93,7 @@ def test_privilege_escalation_detection(detector: BehavioralAnomalyDetector) -> 
     detector._build_baseline("agent-a")
     detector.record_invocation("agent-a", "admin_panel", "read", duration_ms=50)
     alerts = detector.get_alerts(agent_name="agent-a")
-    priv_alerts = [
-        a for a in alerts if a["anomaly_type"] == AnomalyType.PRIVILEGE_ESCALATION.value
-    ]
+    priv_alerts = [a for a in alerts if a["anomaly_type"] == AnomalyType.PRIVILEGE_ESCALATION.value]
     assert len(priv_alerts) >= 1
 
 

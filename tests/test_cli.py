@@ -40,7 +40,7 @@ def test_scan_vulnerable_config(vulnerable_config_path: str, capsys) -> None:
 def test_scan_secure_config(secure_config_path: str, capsys) -> None:
     """Scanning a secure config should print a Security Score."""
     with patch.object(sys, "argv", ["navil", "scan", secure_config_path]):
-        exit_code = main()
+        main()
     captured = capsys.readouterr()
     assert "Security Score" in captured.out
 
@@ -94,6 +94,6 @@ def test_policy_check_command(capsys) -> None:
             "read",
         ],
     ):
-        exit_code = main()
+        main()
     captured = capsys.readouterr()
     assert "Policy Decision" in captured.out

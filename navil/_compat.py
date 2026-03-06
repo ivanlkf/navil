@@ -11,8 +11,7 @@ def require_ml(feature_name: str = "ML features") -> None:
         importlib.import_module("sklearn")
     except ImportError:
         raise ImportError(
-            f"{feature_name} requires scikit-learn. "
-            "Install with: pip install navil[ml]"
+            f"{feature_name} requires scikit-learn. Install with: pip install navil[ml]"
         ) from None
 
 

@@ -10,9 +10,9 @@ from typing import Any
 
 from navil._compat import has_llm
 from navil.adaptive.feedback import FeedbackLoop
-from navil.cloud.billing import BillingManager
 from navil.adaptive.pattern_store import PatternStore
 from navil.anomaly_detector import BehavioralAnomalyDetector
+from navil.cloud.billing import BillingManager
 from navil.credential_manager import CredentialManager
 from navil.policy_engine import PolicyEngine
 from navil.scanner import MCPSecurityScanner
@@ -79,6 +79,7 @@ class AppState:
         """Check if Ollama is running locally."""
         try:
             import urllib.request
+
             req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")
             with urllib.request.urlopen(req, timeout=1):
                 return True
@@ -99,7 +100,10 @@ class AppState:
         from navil.llm.self_healing import SelfHealingEngine
 
         client = LLMClient(
-            provider=provider, api_key=api_key, base_url=base_url, model=model,
+            provider=provider,
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
         )
         self.llm_analyzer = LLMAnalyzer(client=client)
         self.policy_generator = PolicyGenerator(client=client)
@@ -107,11 +111,15 @@ class AppState:
         self.llm_provider = provider
         self.llm_model = client.model
         self.llm_base_url = base_url or ""
-        self.llm_api_key_configured = api_key is not None or provider == "ollama" or bool(
-            os.environ.get("ANTHROPIC_API_KEY")
-            or os.environ.get("OPENAI_API_KEY")
-            or os.environ.get("GEMINI_API_KEY")
-            or os.environ.get("GOOGLE_API_KEY")
+        self.llm_api_key_configured = (
+            api_key is not None
+            or provider == "ollama"
+            or bool(
+                os.environ.get("ANTHROPIC_API_KEY")
+                or os.environ.get("OPENAI_API_KEY")
+                or os.environ.get("GEMINI_API_KEY")
+                or os.environ.get("GOOGLE_API_KEY")
+            )
         )
 
     def configure_llm(
@@ -123,9 +131,7 @@ class AppState:
     ) -> None:
         """Reconfigure LLM at runtime with a new provider and API key."""
         if not self.llm_available:
-            raise RuntimeError(
-                "LLM SDKs not installed. Install with: pip install navil[llm]"
-            )
+            raise RuntimeError("LLM SDKs not installed. Install with: pip install navil[llm]")
         self._init_llm_components(provider, api_key, base_url=base_url, model=model)
         self.llm_api_key_configured = True
 

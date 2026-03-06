@@ -6,18 +6,19 @@ Generates comprehensive security reports with risk assessment and recommendation
 """
 
 import json
-import re
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Tuple
-from dataclasses import dataclass, asdict
+import re
+from dataclasses import asdict, dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class RiskLevel(Enum):
     """Risk severity levels."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -28,6 +29,7 @@ class RiskLevel(Enum):
 @dataclass
 class Vulnerability:
     """Represents a detected vulnerability."""
+
     id: str
     title: str
     description: str
@@ -62,18 +64,27 @@ class MCPSecurityScanner:
     # Known malicious patterns — tuned to avoid false positives on legitimate configs
     # (e.g. RBAC role names, denied-path lists, standard permission verbs)
     MALICIOUS_PATTERNS = {
-        "exfiltration": r"(?i)(exfiltrate|steal_data|leak_credentials|unauthorized.*send|socket.*send.*outside)",
-        "privilege_escalation": r"(?i)(escalate_privilege|sudo\s|run_as_root|admin.*grant_all)",
-        "data_destruction": r"(?i)(delete_all_records|drop\s+database|rm\s+-rf|wipe_disk|destroy_data)",
+        "exfiltration": (
+            r"(?i)(exfiltrate|steal_data|leak_credentials"
+            r"|unauthorized.*send|socket.*send.*outside)"
+        ),
+        "privilege_escalation": (
+            r"(?i)(escalate_privilege|sudo\s|run_as_root"
+            r"|admin.*grant_all)"
+        ),
+        "data_destruction": (
+            r"(?i)(delete_all_records|drop\s+database"
+            r"|rm\s+-rf|wipe_disk|destroy_data)"
+        ),
         "backdoor": r"(?i)(backdoor|hidden.*access|secret.*command|unauthorized.*entry)",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the scanner."""
-        self.vulnerabilities: List[Vulnerability] = []
-        self.warnings: List[str] = []
+        self.vulnerabilities: list[Vulnerability] = []
+        self.warnings: list[str] = []
 
-    def scan(self, config_path: str) -> Dict[str, Any]:
+    def scan(self, config_path: str) -> dict[str, Any]:
         """
         Scan an MCP server configuration file.
 
@@ -88,7 +99,7 @@ class MCPSecurityScanner:
 
         try:
             config = self._load_config(config_path)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error(f"Failed to load config: {e}")
             return {
                 "status": "error",
@@ -122,17 +133,17 @@ class MCPSecurityScanner:
 
         return report
 
-    def _load_config(self, config_path: str) -> Dict[str, Any]:
+    def _load_config(self, config_path: str) -> dict[str, Any]:
         """Load and parse configuration file."""
         path = Path(config_path)
         if not path.exists():
-            raise IOError(f"Configuration file not found: {config_path}")
+            raise OSError(f"Configuration file not found: {config_path}")
 
-        with open(path, "r") as f:
+        with open(path) as f:
             config = json.load(f)
         return config
 
-    def _check_plaintext_credentials(self, config: Dict[str, Any]) -> None:
+    def _check_plaintext_credentials(self, config: dict[str, Any]) -> None:
         """Check for plaintext credentials and API keys."""
         config_str = json.dumps(config)
 
@@ -146,12 +157,14 @@ class MCPSecurityScanner:
                         description=f"Found plaintext {secret_type} in configuration file",
                         risk_level=RiskLevel.CRITICAL.value,
                         affected_field=self._find_field_in_config(config, match.group(0)),
-                        remediation="Use environment variables or secure vaults (AWS Secrets Manager, HashiCorp Vault) for credential storage",
+                        remediation=(
+                            "Use environment variables or secure vaults for credential storage"
+                        ),
                         evidence=f"Detected {secret_type} pattern",
                     )
                 )
 
-    def _check_permissions(self, config: Dict[str, Any]) -> None:
+    def _check_permissions(self, config: dict[str, Any]) -> None:
         """Check for over-privileged tool permissions."""
         tools = config.get("tools", [])
 
@@ -169,28 +182,35 @@ class MCPSecurityScanner:
                             title="Over-Privileged Tool Permissions",
                             description=f"Tool '{name}' has unrestricted permissions",
                             risk_level=RiskLevel.HIGH.value,
-                            affected_field=f"tools[*].permissions",
-                            remediation="Define specific permissions for each tool following the principle of least privilege",
+                            affected_field="tools[*].permissions",
+                            remediation=(
+                                "Apply least-privilege: define specific permissions for each tool"
+                            ),
                             evidence=f"Tool {name} has wildcard permissions",
                         )
                     )
 
                 # Check for file system access without restrictions
-                if "file_system" in permissions:
-                    if "restrictions" not in tool or not tool.get("restrictions"):
-                        self.vulnerabilities.append(
-                            Vulnerability(
-                                id="PERM-UNRESTRICTED-FS",
-                                title="Unrestricted File System Access",
-                                description=f"Tool '{name}' has unrestricted file system access",
-                                risk_level=RiskLevel.HIGH.value,
-                                affected_field=f"tools[*].permissions",
-                                remediation="Restrict file system access to specific directories and file types",
-                                evidence=f"Tool {name} has file_system permission without restrictions",
-                            )
+                if "file_system" in permissions and (
+                    "restrictions" not in tool or not tool.get("restrictions")
+                ):
+                    self.vulnerabilities.append(
+                        Vulnerability(
+                            id="PERM-UNRESTRICTED-FS",
+                            title="Unrestricted File System Access",
+                            description=f"Tool '{name}' has unrestricted file system access",
+                            risk_level=RiskLevel.HIGH.value,
+                            affected_field="tools[*].permissions",
+                            remediation=(
+                                "Restrict file system access to specific directories and file types"
+                            ),
+                            evidence=(
+                                f"Tool {name} has file_system permission without restrictions"
+                            ),
                         )
+                    )
 
-    def _check_authentication(self, config: Dict[str, Any]) -> None:
+    def _check_authentication(self, config: dict[str, Any]) -> None:
         """Check for missing authentication requirements."""
         if "authentication" not in config or not config.get("authentication"):
             self.vulnerabilities.append(
@@ -200,7 +220,9 @@ class MCPSecurityScanner:
                     description="No authentication mechanism configured for MCP server",
                     risk_level=RiskLevel.HIGH.value,
                     affected_field="authentication",
-                    remediation="Implement strong authentication (OAuth2, mTLS, API keys) for server access",
+                    remediation=(
+                        "Implement strong authentication (OAuth2, mTLS, API keys) for server access"
+                    ),
                     evidence="Authentication field is missing or empty",
                 )
             )
@@ -209,11 +231,9 @@ class MCPSecurityScanner:
         auth_config = config.get("authentication", {})
 
         if auth_config.get("type") == "api_key" and not auth_config.get("key_rotation"):
-            self.warnings.append(
-                "API key authentication configured without key rotation policy"
-            )
+            self.warnings.append("API key authentication configured without key rotation policy")
 
-    def _check_server_source(self, config: Dict[str, Any]) -> None:
+    def _check_server_source(self, config: dict[str, Any]) -> None:
         """Check for unsigned or unverified server sources."""
         server = config.get("server", {})
 
@@ -227,12 +247,15 @@ class MCPSecurityScanner:
                         description="Server binary/source is not cryptographically verified",
                         risk_level=RiskLevel.HIGH.value,
                         affected_field="server.source",
-                        remediation="Use signed/verified binaries and implement signature verification before deployment",
+                        remediation=(
+                            "Use signed/verified binaries and implement"
+                            " signature verification before deployment"
+                        ),
                         evidence=f"Server source '{source}' lacks verification metadata",
                     )
                 )
 
-    def _check_malicious_patterns(self, config: Dict[str, Any]) -> None:
+    def _check_malicious_patterns(self, config: dict[str, Any]) -> None:
         """Check for known malicious patterns in tool definitions."""
         config_str = json.dumps(config).lower()
 
@@ -241,16 +264,19 @@ class MCPSecurityScanner:
                 self.vulnerabilities.append(
                     Vulnerability(
                         id=f"MAL-{pattern_type.upper()}",
-                        title=f"Malicious Pattern Detected: {pattern_type.title()}",
-                        description=f"Configuration contains patterns associated with {pattern_type}",
+                        title=f"Malicious Pattern: {pattern_type.title()}",
+                        description=(f"Config contains patterns associated with {pattern_type}"),
                         risk_level=RiskLevel.CRITICAL.value,
                         affected_field="tools",
-                        remediation="Review tool definitions and remove any suspicious or unauthorized functionality",
+                        remediation=(
+                            "Review tool definitions and remove any"
+                            " suspicious or unauthorized functionality"
+                        ),
                         evidence=f"Pattern matching '{pattern_type}' detected in configuration",
                     )
                 )
 
-    def _check_network_security(self, config: Dict[str, Any]) -> None:
+    def _check_network_security(self, config: dict[str, Any]) -> None:
         """Check for insecure network configurations."""
         server = config.get("server", {})
 
@@ -276,7 +302,7 @@ class MCPSecurityScanner:
             if port in [80, 8080, 3000]:
                 self.warnings.append(f"Server exposed on commonly targeted port {port}")
 
-    def _check_tool_safety(self, config: Dict[str, Any]) -> None:
+    def _check_tool_safety(self, config: dict[str, Any]) -> None:
         """Check for unsafe tool configurations."""
         tools = config.get("tools", [])
 
@@ -291,16 +317,15 @@ class MCPSecurityScanner:
                 command = tool.get("command", "")
                 if "${" in command or "$(" in command:
                     self.warnings.append(
-                        f"Tool '{name}' uses variable substitution in commands - ensure proper input validation"
+                        f"Tool '{name}' uses variable substitution"
+                        " in commands — ensure input validation"
                     )
 
             # Check for tools without rate limiting
             if "rate_limit" not in tool:
-                self.warnings.append(
-                    f"Tool '{name}' has no rate limiting configured"
-                )
+                self.warnings.append(f"Tool '{name}' has no rate limiting configured")
 
-    def _find_field_in_config(self, config: Dict[str, Any], evidence: str) -> str:
+    def _find_field_in_config(self, config: dict[str, Any], evidence: str) -> str:
         """Find the field path in config that matches evidence."""
         # Simple implementation - in production, would do proper path tracking
         return "unknown"
@@ -324,7 +349,7 @@ class MCPSecurityScanner:
 
         return max(0, score)
 
-    def _group_by_risk_level(self) -> Dict[str, int]:
+    def _group_by_risk_level(self) -> dict[str, int]:
         """Group vulnerabilities by risk level."""
         groups = {level.value: 0 for level in RiskLevel}
         for vuln in self.vulnerabilities:

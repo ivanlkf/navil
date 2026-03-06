@@ -16,14 +16,16 @@ logger = logging.getLogger(__name__)
 SELF_HEALING_SYSTEM_PROMPT = """You are a security automation engine for MCP Guardian (navil).
 Given anomaly alerts and current policy, suggest specific remediation actions.
 
-Respond with ONLY valid JSON (no markdown fences, no explanation). Keep reasons brief (one sentence).
+Respond with ONLY valid JSON (no markdown fences, no explanation).
+Keep reasons brief (one sentence).
 Schema:
 {
   "summary": "one-sentence summary",
   "risk_assessment": "CRITICAL | HIGH | MEDIUM | LOW",
   "actions": [
     {
-      "type": "policy_update | threshold_adjustment | credential_rotation | agent_block | alert_escalation",
+      "type": "policy_update | threshold_adjustment | credential_rotation
+              | agent_block | alert_escalation",
       "target": "agent or tool name",
       "value": "new value or action",
       "reason": "brief reason",
@@ -93,9 +95,7 @@ class SelfHealingEngine:
         self.pending_actions.extend(suggestions.get("actions", []))
         return suggestions
 
-    def apply_action(
-        self, action: dict[str, Any], policy_engine: Any, detector: Any
-    ) -> bool:
+    def apply_action(self, action: dict[str, Any], policy_engine: Any, detector: Any) -> bool:
         """Apply a single remediation action.
 
         Returns True if applied successfully.
@@ -112,13 +112,9 @@ class SelfHealingEngine:
                 ):
                     ab = detector.adaptive_baselines[target]
                     if isinstance(value, dict) and "rate_multiplier" in value:
-                        ab.rate_threshold_multiplier = float(
-                            value["rate_multiplier"]
-                        )
+                        ab.rate_threshold_multiplier = float(value["rate_multiplier"])
                     elif isinstance(value, dict) and "data_multiplier" in value:
-                        ab.data_threshold_multiplier = float(
-                            value["data_multiplier"]
-                        )
+                        ab.data_threshold_multiplier = float(value["data_multiplier"])
 
             elif action_type == "policy_update":
                 if hasattr(policy_engine, "policy"):
@@ -126,34 +122,27 @@ class SelfHealingEngine:
                     if target in agents and isinstance(value, dict):
                         agents[target].update(value)
 
-            elif action_type == "agent_block":
-                if hasattr(policy_engine, "policy"):
-                    agents = policy_engine.policy.setdefault("agents", {})
-                    agents[target] = {
-                        "tools_allowed": [],
-                        "tools_denied": ["*"],
-                    }
+            elif action_type == "agent_block" and hasattr(policy_engine, "policy"):
+                agents = policy_engine.policy.setdefault("agents", {})
+                agents[target] = {
+                    "tools_allowed": [],
+                    "tools_denied": ["*"],
+                }
 
             # Clear alerts for the remediated agent so re-analysis
             # reflects the updated state.
             if hasattr(detector, "alerts") and target:
-                detector.alerts = [
-                    a for a in detector.alerts if a.agent_name != target
-                ]
+                detector.alerts = [a for a in detector.alerts if a.agent_name != target]
 
             self.applied_actions.append(action)
-            logger.info(
-                f"Self-healing action applied: {action_type} on {target}"
-            )
+            logger.info(f"Self-healing action applied: {action_type} on {target}")
             return True
 
         except Exception as e:
             logger.error(f"Failed to apply self-healing action: {e}")
             return False
 
-    def auto_remediate(
-        self, policy_engine: Any, detector: Any
-    ) -> list[dict[str, Any]]:
+    def auto_remediate(self, policy_engine: Any, detector: Any) -> list[dict[str, Any]]:
         """Auto-apply pending actions above the confidence threshold.
 
         Only applies actions that are:
@@ -167,11 +156,7 @@ class SelfHealingEngine:
             confidence = action.get("confidence", 0.0)
             reversible = action.get("reversible", False)
 
-            if (
-                self.auto_apply
-                and confidence >= self.auto_apply_threshold
-                and reversible
-            ):
+            if self.auto_apply and confidence >= self.auto_apply_threshold and reversible:
                 if self.apply_action(action, policy_engine, detector):
                     applied.append(action)
                 else:
@@ -222,11 +207,7 @@ class SelfHealingEngine:
 
         actions = suggestion.get("actions", [])
         if not actions:
-            remaining_alerts = (
-                detector.get_alerts()
-                if hasattr(detector, "get_alerts")
-                else []
-            )
+            remaining_alerts = detector.get_alerts() if hasattr(detector, "get_alerts") else []
             return {
                 "initial_analysis": initial_analysis,
                 "auto_applied": [],
@@ -260,17 +241,11 @@ class SelfHealingEngine:
                 failed_to_apply.append(action)
 
         # Step 4: Check post-remediation status
-        remaining_alerts = (
-            detector.get_alerts()
-            if hasattr(detector, "get_alerts")
-            else []
-        )
+        remaining_alerts = detector.get_alerts() if hasattr(detector, "get_alerts") else []
 
         # Clean up pending_actions populated by suggest_remediation
         handled = set(id(a) for a in auto_applied + failed_to_apply)
-        self.pending_actions = [
-            a for a in self.pending_actions if id(a) not in handled
-        ]
+        self.pending_actions = [a for a in self.pending_actions if id(a) not in handled]
 
         return {
             "initial_analysis": initial_analysis,

@@ -71,4 +71,5 @@ class TestIsolationForestDetector:
         assert detector2.is_fitted is True
 
         import os
+
         os.unlink(path)

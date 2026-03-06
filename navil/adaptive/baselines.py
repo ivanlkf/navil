@@ -101,9 +101,7 @@ class AgentAdaptiveBaseline:
         alpha = 0.05
         for t in self.tool_distribution:
             self.tool_distribution[t] *= 1 - alpha
-        self.tool_distribution[tool_name] = (
-            self.tool_distribution.get(tool_name, 0.0) + alpha
-        )
+        self.tool_distribution[tool_name] = self.tool_distribution.get(tool_name, 0.0) + alpha
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for persistence or API responses."""

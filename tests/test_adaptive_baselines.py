@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from navil.adaptive.baselines import AgentAdaptiveBaseline, EMABaseline
 
 
@@ -82,9 +80,7 @@ class TestAgentAdaptiveBaseline:
 
     def test_record_observation_updates_all(self) -> None:
         ab = AgentAdaptiveBaseline(agent_name="test-agent")
-        ab.record_observation(
-            duration_ms=100.0, data_bytes=1024.0, tool_name="logs", success=True
-        )
+        ab.record_observation(duration_ms=100.0, data_bytes=1024.0, tool_name="logs", success=True)
         assert ab.duration_ema.count == 1
         assert ab.data_volume_ema.count == 1
         assert ab.success_rate_ema.count == 1

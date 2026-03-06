@@ -58,9 +58,7 @@ def test_data_sensitivity_denied(engine: PolicyEngine) -> None:
 
 def test_data_sensitivity_allowed(engine: PolicyEngine) -> None:
     """Admin (RESTRICTED clearance) should be allowed RESTRICTED data."""
-    allowed, reason = engine.check_tool_call(
-        "admin", "logs", "read", data_sensitivity="RESTRICTED"
-    )
+    allowed, reason = engine.check_tool_call("admin", "logs", "read", data_sensitivity="RESTRICTED")
     assert allowed is True
 
 

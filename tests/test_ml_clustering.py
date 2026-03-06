@@ -35,8 +35,12 @@ class TestAgentClusterer:
         profiles = {
             "reader-1": _make_agent_invocations("reader-1", "logs", 20, duration=10, data=50),
             "reader-2": _make_agent_invocations("reader-2", "logs", 20, duration=15, data=60),
-            "admin-1": _make_agent_invocations("admin-1", "admin_panel", 20, duration=500, data=10000),
-            "admin-2": _make_agent_invocations("admin-2", "admin_panel", 20, duration=600, data=12000),
+            "admin-1": _make_agent_invocations(
+                "admin-1", "admin_panel", 20, duration=500, data=10000
+            ),
+            "admin-2": _make_agent_invocations(
+                "admin-2", "admin_panel", 20, duration=600, data=12000
+            ),
         }
         result = clusterer.fit(profiles)
         assert result["n_clusters"] == 2
@@ -57,8 +61,7 @@ class TestAgentClusterer:
     def test_cluster_assignments_complete(self) -> None:
         clusterer = AgentClusterer(n_clusters=2)
         profiles = {
-            f"agent-{i}": _make_agent_invocations(f"agent-{i}", "logs", 10)
-            for i in range(5)
+            f"agent-{i}": _make_agent_invocations(f"agent-{i}", "logs", 10) for i in range(5)
         }
         result = clusterer.fit(profiles)
         assert len(result["assignments"]) == 5

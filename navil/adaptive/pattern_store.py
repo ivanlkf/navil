@@ -86,18 +86,14 @@ class PatternStore:
             description=description or f"Learned from {agent_name} incident",
             features={
                 "tool_sequence": tool_sequence,
-                "avg_data_volume": (
-                    sum(data_volumes) / len(data_volumes) if data_volumes else 0
-                ),
+                "avg_data_volume": (sum(data_volumes) / len(data_volumes) if data_volumes else 0),
                 "tool_count": len(set(tool_sequence)),
             },
         )
         self.add_pattern(pattern)
         return pattern
 
-    def _compute_match_score(
-        self, pattern: LearnedPattern, context: dict[str, Any]
-    ) -> float:
+    def _compute_match_score(self, pattern: LearnedPattern, context: dict[str, Any]) -> float:
         """Score how well a context matches a pattern. Returns 0.0 to 1.0."""
         score = 0.0
         total_weight = 0.0

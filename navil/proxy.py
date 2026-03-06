@@ -125,9 +125,7 @@ class MCPSecurityProxy:
 
     # ── Core Request Handler ──────────────────────────────────
 
-    async def handle_jsonrpc(
-        self, body: bytes, headers: dict[str, str]
-    ) -> dict[str, Any]:
+    async def handle_jsonrpc(self, body: bytes, headers: dict[str, str]) -> dict[str, Any]:
         """Handle an incoming JSON-RPC request.
 
         Returns a JSON-RPC 2.0 response dict (either proxied result or error).
@@ -159,9 +157,7 @@ class MCPSecurityProxy:
 
             # Policy check
             if hasattr(self.policy_engine, "check_tool_call"):
-                decision = self.policy_engine.check_tool_call(
-                    agent_name, tool_name, action
-                )
+                decision = self.policy_engine.check_tool_call(agent_name, tool_name, action)
                 if hasattr(decision, "decision"):
                     decision_val = decision.decision.value
                 else:
@@ -170,9 +166,7 @@ class MCPSecurityProxy:
                 if decision_val == "DENY":
                     self.stats["blocked"] += 1
                     duration_ms = int((time.time() - start) * 1000)
-                    self._log_traffic(
-                        agent_name, method, tool_name, "DENIED", duration_ms, 0
-                    )
+                    self._log_traffic(agent_name, method, tool_name, "DENIED", duration_ms, 0)
                     return self._jsonrpc_error(
                         -32001,
                         f"Blocked by policy: {tool_name}",
@@ -206,9 +200,7 @@ class MCPSecurityProxy:
                 self.stats["alerts_generated"] += alert_count_after - alert_count_before
 
             self.stats["forwarded"] += 1
-            self._log_traffic(
-                agent_name, method, tool_name, "ALLOWED", duration_ms, response_bytes
-            )
+            self._log_traffic(agent_name, method, tool_name, "ALLOWED", duration_ms, response_bytes)
             return response_data
 
         elif method == "tools/list":
@@ -243,9 +235,7 @@ class MCPSecurityProxy:
                 pass
 
             self.stats["forwarded"] += 1
-            self._log_traffic(
-                agent_name, method, "", "ALLOWED", duration_ms, response_bytes
-            )
+            self._log_traffic(agent_name, method, "", "ALLOWED", duration_ms, response_bytes)
             return response_data
 
         else:
@@ -253,16 +243,12 @@ class MCPSecurityProxy:
             response_data, response_bytes = await self._forward(body, headers)
             duration_ms = int((time.time() - start) * 1000)
             self.stats["forwarded"] += 1
-            self._log_traffic(
-                agent_name, method, "", "FORWARDED", duration_ms, response_bytes
-            )
+            self._log_traffic(agent_name, method, "", "FORWARDED", duration_ms, response_bytes)
             return response_data
 
     # ── Upstream Forwarding ───────────────────────────────────
 
-    async def _forward(
-        self, body: bytes, headers: dict[str, str]
-    ) -> tuple[dict[str, Any], int]:
+    async def _forward(self, body: bytes, headers: dict[str, str]) -> tuple[dict[str, Any], int]:
         """Forward request to upstream MCP server via httpx.
 
         Returns (response_json, response_size_bytes).

@@ -59,9 +59,7 @@ class FeedbackLoop:
         )
         self.entries.append(entry)
         self._persist()
-        logger.info(
-            f"Feedback recorded: {verdict} for {anomaly_type} alert on {agent_name}"
-        )
+        logger.info(f"Feedback recorded: {verdict} for {anomaly_type} alert on {agent_name}")
         return entry
 
     def compute_adjustments(self, anomaly_type: str) -> dict[str, float]:
@@ -94,9 +92,7 @@ class FeedbackLoop:
 
         return adjustment
 
-    def apply_adjustments_to_baseline(
-        self, baseline: Any, anomaly_type: str
-    ) -> None:
+    def apply_adjustments_to_baseline(self, baseline: Any, anomaly_type: str) -> None:
         """Apply computed adjustments to an AgentAdaptiveBaseline."""
         adjustments = self.compute_adjustments(anomaly_type)
         if not adjustments:

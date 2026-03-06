@@ -23,9 +23,7 @@ class AgentClusterer:
         self.n_clusters = n_clusters
         self.is_fitted = False
 
-    def fit(
-        self, agent_profiles: dict[str, list[ToolInvocation]]
-    ) -> dict[str, Any]:
+    def fit(self, agent_profiles: dict[str, list[ToolInvocation]]) -> dict[str, Any]:
         """Cluster agents based on their invocation profiles.
 
         Args:
@@ -55,9 +53,7 @@ class AgentClusterer:
 
         self.is_fitted = True
 
-        assignments = {
-            name: int(label) for name, label in zip(agent_names, labels)
-        }
+        assignments = {name: int(label) for name, label in zip(agent_names, labels, strict=False)}
 
         clusters: dict[int, list[str]] = {}
         for name, label in assignments.items():
@@ -69,9 +65,7 @@ class AgentClusterer:
             "clusters": clusters,
         }
 
-    def _profile_features(
-        self, invocations: list[ToolInvocation]
-    ) -> list[float]:
+    def _profile_features(self, invocations: list[ToolInvocation]) -> list[float]:
         """Extract aggregate profile features for one agent."""
         import numpy as np
 
@@ -81,9 +75,7 @@ class AgentClusterer:
         durations = [inv.duration_ms for inv in invocations]
         data_vols = [inv.data_accessed_bytes for inv in invocations]
         unique_tools = len({inv.tool_name for inv in invocations})
-        success_rate = (
-            sum(1 for inv in invocations if inv.success) / len(invocations)
-        )
+        success_rate = sum(1 for inv in invocations if inv.success) / len(invocations)
 
         return [
             float(np.mean(durations)),

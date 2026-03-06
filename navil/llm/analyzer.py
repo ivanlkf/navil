@@ -10,7 +10,8 @@ from typing import Any
 from navil.llm import extract_json
 from navil.llm.client import LLMClient
 
-ANALYSIS_SYSTEM_PROMPT = """You are a security analyst for MCP (Model Context Protocol) server configurations.
+ANALYSIS_SYSTEM_PROMPT = """\
+You are a security analyst for MCP server configurations.
 Analyze the provided configuration or anomaly data and provide:
 1. A clear explanation of security implications
 2. Specific risks identified
@@ -20,22 +21,22 @@ Analyze the provided configuration or anomaly data and provide:
 Be concise and technical. Format your response as JSON with keys:
 explanation, risks (list), remediations (list), severity, confidence (0.0-1.0)."""
 
-ANOMALY_EXPLANATION_PROMPT = """You are a security analyst explaining behavioral anomalies in MCP agent systems.
-Given the anomaly data, explain:
+ANOMALY_EXPLANATION_PROMPT = """\
+You are a security analyst explaining behavioral anomalies
+in MCP agent systems. Given the anomaly data, explain:
 1. What the anomaly means in plain language
 2. Whether it is likely a true threat or a false positive
 3. What actions the operator should take
-4. What the contributing factors suggest about the agent's behavior
+4. What the contributing factors suggest
 
-Format as JSON with keys: explanation, likely_threat (bool), recommended_actions (list), analysis."""
+Format as JSON with keys:
+explanation, likely_threat (bool), recommended_actions (list), analysis."""
 
 
 class LLMAnalyzer:
     """LLM-powered analysis for configs and anomalies."""
 
-    def __init__(
-        self, client: LLMClient | None = None, **client_kwargs: Any
-    ) -> None:
+    def __init__(self, client: LLMClient | None = None, **client_kwargs: Any) -> None:
         self.client = client or LLMClient(**client_kwargs)
 
     def analyze_config(self, config: dict[str, Any]) -> dict[str, Any]:
