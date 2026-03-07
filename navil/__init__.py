@@ -1,15 +1,15 @@
 """
-Navil — Supply-chain security for MCP (Model Context Protocol) servers.
+Navil (MCP Guardian) -- Supply-chain security for MCP (Model Context Protocol) servers.
 
 Provides configuration scanning, credential lifecycle management,
 policy enforcement, behavioral anomaly detection, adaptive baselines,
-and ML-powered detection.
+ML-powered detection, and LLM-powered analysis.
 """
 
 from __future__ import annotations
 
 # Optional compatibility checks
-from navil._compat import has_ml
+from navil._compat import has_llm, has_ml
 
 # Adaptive module (always available, zero extra deps)
 from navil.adaptive.baselines import AgentAdaptiveBaseline, EMABaseline
@@ -46,4 +46,5 @@ __all__ = [
     "PatternStore",
     # Compatibility
     "has_ml",
+    "has_llm",
 ]

@@ -10,11 +10,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from navil._compat import has_ml
+from navil._compat import has_llm, has_ml
 from navil.anomaly_detector import BehavioralAnomalyDetector
 from navil.credential_manager import CredentialManager, CredentialStatus
 from navil.policy_engine import PolicyEngine
@@ -353,6 +354,176 @@ class MCPGuardianCLI:
         print(json.dumps(result, indent=2, default=str))
         return 0
 
+    # ── LLM commands ────────────────────────────────────────────
+
+    @staticmethod
+    def _resolve_llm_api_key(args: argparse.Namespace) -> str | None:
+        """Resolve API key from --api-key flag or environment variables."""
+        if args.api_key:
+            return str(args.api_key)
+        env_map: dict[str, str] = {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "openai_compatible": "OPENAI_API_KEY",
+        }
+        env_var = env_map.get(args.provider)
+        if env_var:
+            key = os.environ.get(env_var)
+            if key:
+                return key
+        if args.provider == "ollama":
+            return "ollama"
+        return None
+
+    def llm_analyze_config_command(self, args: argparse.Namespace) -> int:
+        """Analyze MCP config using LLM."""
+        if not has_llm():
+            print(
+                "Error: LLM dependencies not installed. Run: pip install navil[llm]",
+                file=sys.stderr,
+            )
+            return 1
+
+        from navil.llm.analyzer import LLMAnalyzer
+        from navil.llm.client import LLMClient
+
+        config_path = Path(args.config_path)
+        if not config_path.exists():
+            print(f"Error: File not found: {config_path}", file=sys.stderr)
+            return 1
+
+        config = json.loads(config_path.read_text())
+        api_key = self._resolve_llm_api_key(args)
+        if not api_key:
+            print(
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
+                file=sys.stderr,
+            )
+            return 1
+        client = LLMClient(
+            provider=args.provider,
+            api_key=api_key,
+            model=args.model or None,
+            base_url=args.base_url,
+        )
+        analyzer = LLMAnalyzer(client=client)
+        result = analyzer.analyze_config(config)
+        print("\nLLM Config Analysis")
+        print("-" * 60)
+        print(json.dumps(result, indent=2))
+        return 0
+
+    def llm_explain_anomaly_command(self, args: argparse.Namespace) -> int:
+        """Explain an anomaly using LLM."""
+        if not has_llm():
+            print(
+                "Error: LLM dependencies not installed. Run: pip install navil[llm]",
+                file=sys.stderr,
+            )
+            return 1
+
+        from navil.llm.analyzer import LLMAnalyzer
+        from navil.llm.client import LLMClient
+
+        anomaly_data = json.loads(args.anomaly_json)
+        api_key = self._resolve_llm_api_key(args)
+        if not api_key:
+            print(
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
+                file=sys.stderr,
+            )
+            return 1
+        client = LLMClient(
+            provider=args.provider,
+            api_key=api_key,
+            model=args.model or None,
+            base_url=args.base_url,
+        )
+        analyzer = LLMAnalyzer(client=client)
+        result = analyzer.explain_anomaly(anomaly_data)
+        print("\nLLM Anomaly Explanation")
+        print("-" * 60)
+        print(json.dumps(result, indent=2))
+        return 0
+
+    def llm_generate_policy_command(self, args: argparse.Namespace) -> int:
+        """Generate policy YAML from natural language."""
+        if not has_llm():
+            print(
+                "Error: LLM dependencies not installed. Run: pip install navil[llm]",
+                file=sys.stderr,
+            )
+            return 1
+
+        import yaml
+
+        from navil.llm.client import LLMClient
+        from navil.llm.policy_gen import PolicyGenerator
+
+        api_key = self._resolve_llm_api_key(args)
+        if not api_key:
+            print(
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
+                file=sys.stderr,
+            )
+            return 1
+        client = LLMClient(
+            provider=args.provider,
+            api_key=api_key,
+            model=args.model or None,
+            base_url=args.base_url,
+        )
+        gen = PolicyGenerator(client=client)
+        policy = gen.generate(args.description)
+        output = yaml.dump(policy, default_flow_style=False)
+        if args.output:
+            Path(args.output).write_text(output)
+            print(f"Policy saved to {args.output}")
+        else:
+            print("\nGenerated Policy")
+            print("-" * 60)
+            print(output)
+        return 0
+
+    def llm_suggest_healing_command(self, args: argparse.Namespace) -> int:
+        """Suggest self-healing remediations using LLM."""
+        if not has_llm():
+            print(
+                "Error: LLM dependencies not installed. Run: pip install navil[llm]",
+                file=sys.stderr,
+            )
+            return 1
+
+        from navil.llm.client import LLMClient
+        from navil.llm.self_healing import SelfHealingEngine
+
+        api_key = self._resolve_llm_api_key(args)
+        if not api_key:
+            print(
+                f"Error: No API key. Pass --api-key or set "
+                f"{args.provider.upper()}_API_KEY env var.",
+                file=sys.stderr,
+            )
+            return 1
+        client = LLMClient(
+            provider=args.provider,
+            api_key=api_key,
+            model=args.model or None,
+            base_url=args.base_url,
+        )
+        engine = SelfHealingEngine(client=client)
+        alerts = self.anomaly_detector.get_alerts()
+        policy = self.policy_engine.policy
+        result = engine.suggest_remediation(alerts, policy)
+        print("\nSelf-Healing Suggestions")
+        print("-" * 60)
+        print(json.dumps(result, indent=2))
+        return 0
+
 
 def _pentest_print_report(report: dict) -> None:  # type: ignore[type-arg]
     """Pretty-print a pentest report to the terminal."""
@@ -389,7 +560,6 @@ Examples:
   navil credential issue --agent my-agent --scope "read:tools" --ttl 3600
   navil credential revoke --token-id cred_abc123
   navil policy check --tool file_system --agent my-agent --action read
-  navil pentest
   navil monitor start
   navil report
         """,
@@ -407,6 +577,7 @@ Examples:
     credential_parser = subparsers.add_parser("credential", help="Manage credentials")
     credential_subparsers = credential_parser.add_subparsers(dest="credential_command")
 
+    # Issue credential
     issue_parser = credential_subparsers.add_parser("issue", help="Issue new credential")
     issue_parser.add_argument("--agent", required=True, help="Agent name")
     issue_parser.add_argument("--scope", required=True, help="Permission scope")
@@ -415,10 +586,12 @@ Examples:
     )
     issue_parser.set_defaults(func=lambda cli, args: cli.credential_issue_command(args))
 
+    # Revoke credential
     revoke_parser = credential_subparsers.add_parser("revoke", help="Revoke credential")
     revoke_parser.add_argument("--token-id", required=True, help="Token ID to revoke")
     revoke_parser.set_defaults(func=lambda cli, args: cli.credential_revoke_command(args))
 
+    # List credentials
     list_parser = credential_subparsers.add_parser("list", help="List credentials")
     list_parser.add_argument("--agent", help="Filter by agent name", default=None)
     list_parser.add_argument("--status", help="Filter by status", default=None)
@@ -496,10 +669,50 @@ Examples:
     ml_cluster.add_argument("--n-clusters", default="3", help="Number of clusters (default: 3)")
     ml_cluster.set_defaults(func=lambda cli, args: cli.ml_cluster_command(args))
 
+    # ── LLM commands ────────────────────────────────────────────
+    llm_parser = subparsers.add_parser("llm", help="LLM-powered analysis (requires navil[llm])")
+    llm_sub = llm_parser.add_subparsers(dest="llm_command")
+
+    # Shared LLM args helper
+    def _add_llm_args(p: argparse.ArgumentParser) -> None:
+        p.add_argument(
+            "--provider",
+            default="anthropic",
+            choices=["anthropic", "openai", "gemini", "ollama", "openai_compatible"],
+            help="LLM provider (default: anthropic)",
+        )
+        p.add_argument(
+            "--api-key",
+            default=None,
+            help="API key (or set ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY env var)",
+        )
+        p.add_argument("--model", default=None, help="Model name override")
+        p.add_argument(
+            "--base-url", default=None, help="Custom API base URL (for ollama or openai_compatible)"
+        )
+
+    llm_analyze = llm_sub.add_parser("analyze-config", help="Analyze config with LLM")
+    llm_analyze.add_argument("config_path", help="Path to MCP config (JSON)")
+    _add_llm_args(llm_analyze)
+    llm_analyze.set_defaults(func=lambda cli, args: cli.llm_analyze_config_command(args))
+
+    llm_explain = llm_sub.add_parser("explain-anomaly", help="Explain anomaly with LLM")
+    llm_explain.add_argument("anomaly_json", help="Anomaly data as JSON string")
+    _add_llm_args(llm_explain)
+    llm_explain.set_defaults(func=lambda cli, args: cli.llm_explain_anomaly_command(args))
+
+    llm_genpol = llm_sub.add_parser("generate-policy", help="Generate policy from description")
+    llm_genpol.add_argument("description", help="Natural language policy description")
+    llm_genpol.add_argument("-o", "--output", help="Save policy YAML to file", default=None)
+    _add_llm_args(llm_genpol)
+    llm_genpol.set_defaults(func=lambda cli, args: cli.llm_generate_policy_command(args))
+
+    llm_heal = llm_sub.add_parser("suggest-healing", help="Suggest self-healing actions")
+    _add_llm_args(llm_heal)
+    llm_heal.set_defaults(func=lambda cli, args: cli.llm_suggest_healing_command(args))
+
     # ── Proxy commands ─────────────────────────────────────────
-    proxy_parser = subparsers.add_parser(
-        "proxy", help="MCP security proxy (requires fastapi + uvicorn)"
-    )
+    proxy_parser = subparsers.add_parser("proxy", help="MCP security proxy (requires navil[cloud])")
     proxy_sub = proxy_parser.add_subparsers(dest="proxy_command")
 
     proxy_start = proxy_sub.add_parser("start", help="Start the MCP security proxy")
@@ -518,8 +731,7 @@ Examples:
             from navil.proxy import MCPSecurityProxy, create_proxy_app
         except ImportError:
             print(
-                "Error: Proxy dependencies not installed. "
-                "Run: pip install fastapi uvicorn[standard] httpx",
+                "Error: Cloud dependencies not installed. Run: pip install navil[cloud]",
                 file=sys.stderr,
             )
             return 1
@@ -609,6 +821,35 @@ Examples:
         return 0 if report["failed"] == 0 else 1
 
     pentest_parser.set_defaults(func=_pentest_run)
+
+    # ── Cloud commands ──────────────────────────────────────────
+    cloud_parser = subparsers.add_parser(
+        "cloud", help="Launch Navil Cloud dashboard (requires navil[cloud])"
+    )
+    cloud_sub = cloud_parser.add_subparsers(dest="cloud_command")
+
+    cloud_serve = cloud_sub.add_parser("serve", help="Start the dashboard server")
+    cloud_serve.add_argument("--port", default="8484", help="Port to serve on (default: 8484)")
+    cloud_serve.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
+    cloud_serve.add_argument("--no-demo", action="store_true", help="Don't seed demo data")
+
+    def _cloud_serve(cli: MCPGuardianCLI, args: argparse.Namespace) -> int:
+        try:
+            from navil.cloud.app import create_app
+        except ImportError:
+            print(
+                "Error: Cloud dependencies not installed. Run: pip install navil[cloud]",
+                file=sys.stderr,
+            )
+            return 1
+        import uvicorn
+
+        app = create_app(with_demo=not args.no_demo)
+        print(f"\n  Navil Cloud starting at http://localhost:{args.port}\n")
+        uvicorn.run(app, host=args.host, port=int(args.port), log_level="info")
+        return 0
+
+    cloud_serve.set_defaults(func=_cloud_serve)
 
     args = parser.parse_args()
 
