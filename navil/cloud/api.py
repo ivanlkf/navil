@@ -531,7 +531,10 @@ def create_checkout(req: CheckoutRequest, request: Request) -> dict[str, Any]:
     user_id = _get_user_id(request)
     email = getattr(request.state, "user_email", "")
     url = s.billing.create_checkout_session(  # type: ignore[attr-defined]
-        user_id, req.success_url, req.cancel_url, email,
+        user_id,
+        req.success_url,
+        req.cancel_url,
+        email,
     )
     return {"checkout_url": url}
 
@@ -545,7 +548,8 @@ def create_portal(request: Request) -> dict[str, Any]:
     user_id = _get_user_id(request)
     return_url = request.headers.get("referer", "/")
     url = s.billing.create_portal_session(  # type: ignore[attr-defined]
-        user_id, return_url,
+        user_id,
+        return_url,
     )
     return {"portal_url": url}
 
@@ -764,7 +768,7 @@ def analytics_overview(request: Request) -> dict[str, Any]:
 
         policy_compliance = min(100.0, max(0.0, (1.0 - alert_rate * 2) * 100))
         anomaly_frequency = max(0.0, 100.0 - alert_rate * 500)
-        dur_cv = (bl.duration_ema.variance ** 0.5) / max(bl.duration_ema.mean, 1)
+        dur_cv = (bl.duration_ema.variance**0.5) / max(bl.duration_ema.mean, 1)
         behavioral_stability = max(0.0, 100.0 - dur_cv * 50)
         data_pattern = 75.0
 
@@ -778,17 +782,19 @@ def analytics_overview(request: Request) -> dict[str, Any]:
 
         verdict = "trusted" if score >= 70 else ("moderate" if score >= 40 else "untrusted")
 
-        trust_scores.append({
-            "agent_name": name,
-            "score": round(score, 1),
-            "verdict": verdict,
-            "components": {
-                "policy_compliance": round(policy_compliance, 1),
-                "anomaly_frequency": round(anomaly_frequency, 1),
-                "data_pattern": round(data_pattern, 1),
-                "behavioral_stability": round(behavioral_stability, 1),
-            },
-        })
+        trust_scores.append(
+            {
+                "agent_name": name,
+                "score": round(score, 1),
+                "verdict": verdict,
+                "components": {
+                    "policy_compliance": round(policy_compliance, 1),
+                    "anomaly_frequency": round(anomaly_frequency, 1),
+                    "data_pattern": round(data_pattern, 1),
+                    "behavioral_stability": round(behavioral_stability, 1),
+                },
+            }
+        )
 
     # Behavioral profiles
     profiles = []
@@ -813,14 +819,17 @@ def analytics_overview(request: Request) -> dict[str, Any]:
         )
         top_pct = round((tool_counts.get(top_tool, 0) / max(total, 1)) * 100, 1)
 
-        profiles.append({
-            "agent_name": name,
-            "total_events": total or bl.duration_ema.count,
-            "top_tool": top_tool,
-            "top_tool_pct": top_pct if total else 50.0,
-            "avg_duration_ms": round(bl.duration_ema.mean, 0),
-            "total_data_bytes": total_bytes or int(bl.data_volume_ema.mean * bl.duration_ema.count),
-        })
+        profiles.append(
+            {
+                "agent_name": name,
+                "total_events": total or bl.duration_ema.count,
+                "top_tool": top_tool,
+                "top_tool_pct": top_pct if total else 50.0,
+                "avg_duration_ms": round(bl.duration_ema.mean, 0),
+                "total_data_bytes": total_bytes
+                or int(bl.data_volume_ema.mean * bl.duration_ema.count),
+            }
+        )
 
     # Hourly trend buckets
     import datetime as dt
@@ -829,20 +838,26 @@ def analytics_overview(request: Request) -> dict[str, Any]:
     trends = []
     for h in range(24):
         label = f"{23 - h}h"
-        bucket_alerts = len([
-            a for a in alerts
-            if a.get("timestamp") and _hours_ago(a["timestamp"], now) == (23 - h)
-        ])
-        trends.append({
-            "label": label,
-            "events": max(len(invocations) // 24, 10) + (h % 5) * 3,
-            "anomalies": bucket_alerts,
-        })
+        bucket_alerts = len(
+            [
+                a
+                for a in alerts
+                if a.get("timestamp") and _hours_ago(a["timestamp"], now) == (23 - h)
+            ]
+        )
+        trends.append(
+            {
+                "label": label,
+                "events": max(len(invocations) // 24, 10) + (h % 5) * 3,
+                "anomalies": bucket_alerts,
+            }
+        )
 
     avg_score = sum(t["score"] for t in trust_scores) / max(len(trust_scores), 1)
     total_alerts = len(alerts)
     total_events: int = len(invocations) or sum(
-        p["total_events"] for p in profiles  # type: ignore[misc]
+        p["total_events"]
+        for p in profiles  # type: ignore[misc]
     )
     anomaly_rate = total_alerts / max(total_events, 1)
 
@@ -881,9 +896,7 @@ def run_pentest(req: PentestRequest) -> dict[str, Any]:
             "failed": 1 if result.verdict == "FAIL" else 0,
             "partial": 1 if result.verdict == "PARTIAL" else 0,
             "detection_rate": (
-                100.0 if result.verdict == "PASS"
-                else 50.0 if result.verdict == "PARTIAL"
-                else 0.0
+                100.0 if result.verdict == "PASS" else 50.0 if result.verdict == "PARTIAL" else 0.0
             ),
             "results": [result.to_dict()],
         }

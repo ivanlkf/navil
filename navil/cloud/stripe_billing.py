@@ -139,7 +139,9 @@ class StripeBillingManager:
         import stripe
 
         event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET,
+            payload,
+            sig_header,
+            STRIPE_WEBHOOK_SECRET,
         )
 
         if event.type in (
@@ -151,11 +153,7 @@ class StripeBillingManager:
             obj = event.data.object
             customer_id = obj.get("customer") or obj.get("id")
             # Invalidate cache entries for this customer
-            to_remove = [
-                uid
-                for uid, cs in self._cache.items()
-                if cs.customer_id == customer_id
-            ]
+            to_remove = [uid for uid, cs in self._cache.items() if cs.customer_id == customer_id]
             for uid in to_remove:
                 del self._cache[uid]
             logger.info(

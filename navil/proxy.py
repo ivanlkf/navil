@@ -298,9 +298,7 @@ class MCPSecurityProxy:
 
         # Collect headers to forward back (e.g. mcp-session-id)
         upstream_headers = {
-            k: v
-            for k, v in resp.headers.items()
-            if k.lower() in ("mcp-session-id",)
+            k: v for k, v in resp.headers.items() if k.lower() in ("mcp-session-id",)
         }
 
         return response_data, response_bytes, upstream_headers

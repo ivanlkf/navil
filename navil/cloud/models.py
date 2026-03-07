@@ -47,7 +47,10 @@ class Event(Base):
     data_accessed_bytes = Column(Integer, nullable=False, default=0)
     success = Column(Boolean, nullable=False, default=True)
     created_at = Column(
-        DateTime, nullable=False, default=dt.datetime.utcnow, server_default=func.now(),
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
     )
 
     __table_args__ = (
@@ -68,7 +71,10 @@ class Alert(Base):
     severity = Column(String(16), nullable=False)  # LOW, MEDIUM, HIGH, CRITICAL
     details = Column(Text, nullable=False, default="{}")  # JSON blob
     created_at = Column(
-        DateTime, nullable=False, default=dt.datetime.utcnow, server_default=func.now(),
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
     )
 
     __table_args__ = (
@@ -91,7 +97,10 @@ class AgentMetric(Base):
     known_tools = Column(Text, nullable=False, default="[]")  # JSON array
     trust_score = Column(Float, nullable=True)  # 0-100, null if not computed
     created_at = Column(
-        DateTime, nullable=False, default=dt.datetime.utcnow, server_default=func.now(),
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
     )
 
     __table_args__ = (
@@ -112,7 +121,10 @@ class TrustScore(Base):
     # JSON: {policy_compliance, anomaly_frequency, data_pattern, behavioral_stability}
     components = Column(Text, nullable=False, default="{}")
     created_at = Column(
-        DateTime, nullable=False, default=dt.datetime.utcnow, server_default=func.now(),
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
     )
 
     __table_args__ = (
@@ -136,9 +148,10 @@ class AnomalyTrend(Base):
     anomaly_rate = Column(Float, nullable=False, default=0.0)
     severity_breakdown = Column(Text, nullable=False, default="{}")  # JSON
     created_at = Column(
-        DateTime, nullable=False, default=dt.datetime.utcnow, server_default=func.now(),
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
     )
 
-    __table_args__ = (
-        Index("ix_anomaly_trends_user_period", "user_id", "period_start"),
-    )
+    __table_args__ = (Index("ix_anomaly_trends_user_period", "user_id", "period_start"),)

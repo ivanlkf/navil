@@ -51,6 +51,7 @@ class PolicyGenerator:
         # Strip markdown code fences (```yaml ... ``` or ``` ... ```)
         if "```" in cleaned:
             import re
+
             match = re.search(r"```(?:ya?ml)?\s*\n(.*?)```", cleaned, re.DOTALL)
             if match:
                 cleaned = match.group(1).strip()

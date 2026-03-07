@@ -226,13 +226,15 @@ class AnalyticsEngine:
 
         tools = []
         for row in tool_stats:
-            tools.append({
-                "tool_name": row.tool_name,
-                "invocation_count": row.count,
-                "percentage": round((row.count / max(total_events, 1)) * 100, 1),
-                "avg_duration_ms": round(float(row.avg_duration or 0), 1),
-                "total_data_bytes": int(row.total_bytes or 0),
-            })
+            tools.append(
+                {
+                    "tool_name": row.tool_name,
+                    "invocation_count": row.count,
+                    "percentage": round((row.count / max(total_events, 1)) * 100, 1),
+                    "avg_duration_ms": round(float(row.avg_duration or 0), 1),
+                    "total_data_bytes": int(row.total_bytes or 0),
+                }
+            )
 
         return {
             "agent_name": agent_name,

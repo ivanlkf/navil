@@ -69,12 +69,10 @@ class MCPSecurityScanner:
             r"|unauthorized.*send|socket.*send.*outside)"
         ),
         "privilege_escalation": (
-            r"(?i)(escalate_privilege|sudo\s|run_as_root"
-            r"|admin.*grant_all)"
+            r"(?i)(escalate_privilege|sudo\s|run_as_root" r"|admin.*grant_all)"
         ),
         "data_destruction": (
-            r"(?i)(delete_all_records|drop\s+database"
-            r"|rm\s+-rf|wipe_disk|destroy_data)"
+            r"(?i)(delete_all_records|drop\s+database" r"|rm\s+-rf|wipe_disk|destroy_data)"
         ),
         "backdoor": r"(?i)(backdoor|hidden.*access|secret.*command|unauthorized.*entry)",
     }
