@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Pantheon Lab Limited
-# Licensed under the Business Source License 1.1 (see LICENSE.cloud)
+# Licensed under the Apache License, Version 2.0 (see LICENSE)
 """Self-healing policy and detection adjustments."""
 
 from __future__ import annotations

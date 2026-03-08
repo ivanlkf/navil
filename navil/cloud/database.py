@@ -34,19 +34,32 @@ _SessionFactory = None
 
 
 def _get_engine():  # type: ignore[no-untyped-def]
-    """Lazy-create the SQLAlchemy engine."""
+    """Lazy-create the SQLAlchemy engine with production pool tuning."""
     global _engine
     if _engine is None:
         from sqlalchemy import create_engine
 
-        connect_args = {}
+        connect_args: dict = {}
+        pool_kwargs: dict = {
+            "echo": False,
+            "pool_pre_ping": True,
+        }
+
         if DATABASE_URL.startswith("sqlite"):
             connect_args["check_same_thread"] = False
+        else:
+            # PostgreSQL / production pool tuning
+            pool_kwargs.update({
+                "pool_size": 20,
+                "max_overflow": 10,
+                "pool_recycle": 300,
+                "pool_timeout": 30,
+            })
+
         _engine = create_engine(
             DATABASE_URL,
-            echo=False,
-            pool_pre_ping=True,
             connect_args=connect_args,
+            **pool_kwargs,
         )
     return _engine
 

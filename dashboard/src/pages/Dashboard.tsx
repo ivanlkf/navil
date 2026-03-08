@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, Overview, Credential, PolicyDecision, FeedbackStats } from '../api'
+import { api, Overview, Credential, PolicyDecision, FeedbackStats, ProxyConnection } from '../api'
 import StatCard from '../components/StatCard'
 import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [decisions, setDecisions] = useState<PolicyDecision[]>([])
   const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null)
+  const [proxyConn, setProxyConn] = useState<ProxyConnection | null>(null)
   const [error, setError] = useState('')
 
   const fetchData = useCallback(() => {
@@ -49,12 +50,14 @@ export default function Dashboard() {
       api.getCredentials(),
       api.getPolicyDecisions(),
       api.getFeedbackStats(),
+      api.getProxyConnection().catch(() => null),
     ])
-      .then(([overview, creds, decs, fb]) => {
+      .then(([overview, creds, decs, fb, conn]) => {
         setData(overview)
         setCredentials(creds)
         setDecisions(decs)
         setFeedbackStats(fb)
+        setProxyConn(conn)
       })
       .catch(e => setError(e.message))
   }, [])
@@ -98,6 +101,40 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <PageHeader title="Dashboard" subtitle="Agent fleet security overview" />
+
+      {/* Proxy connection status (cloud mode) */}
+      {proxyConn && (
+        <div className={`glass-card p-4 flex items-center gap-3 border animate-fadeIn ${
+          proxyConn.status === 'connected'
+            ? 'border-emerald-500/30'
+            : proxyConn.status === 'stale'
+              ? 'border-yellow-500/30'
+              : 'border-gray-700/50'
+        }`}>
+          <span className={`w-3 h-3 rounded-full ${
+            proxyConn.status === 'connected'
+              ? 'bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+              : proxyConn.status === 'stale'
+                ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]'
+                : 'bg-gray-600'
+          }`} />
+          <div className="flex-1">
+            <span className="text-sm font-medium text-gray-300">
+              Proxy: {proxyConn.status === 'connected' ? 'Connected' : proxyConn.status === 'stale' ? 'Stale' : 'Disconnected'}
+            </span>
+            {proxyConn.last_heartbeat && (
+              <span className="text-xs text-gray-500 ml-2">
+                Last seen: <RelativeTime timestamp={proxyConn.last_heartbeat} className="text-gray-500 text-xs" />
+              </span>
+            )}
+          </div>
+          {proxyConn.status === 'disconnected' && (
+            <Link to="/onboarding" className="text-xs text-indigo-400 hover:text-indigo-300">
+              Setup Guide
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Stat cards — 6 cards in 3x2 grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

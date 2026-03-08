@@ -2,9 +2,13 @@ Business Source License 1.1
 
 Licensor:             Pantheon Lab Limited
 
-Licensed Work:        Navil Cloud — the cloud dashboard, LLM-powered analysis
-                      features, and API server components of the Navil project.
+Licensed Work:        Navil Cloud — the cloud dashboard, analytics, billing,
+                      and API server components of the Navil project (the
+                      navil/cloud/ directory and navil-cloud overlay repo).
                       The Licensed Work is (c) 2026 Pantheon Lab Limited.
+
+                      Note: The LLM module (navil/llm/) is NOT part of the
+                      Licensed Work and is available under Apache License 2.0.
 
 Additional Use Grant: You may use the Licensed Work for your own internal
                       business purposes, including self-hosting the dashboard

@@ -47,12 +47,14 @@ class MCPSecurityProxy:
         anomaly_detector: Any,
         credential_manager: Any,
         require_auth: bool = True,
+        cloud_client: Any | None = None,
     ) -> None:
         self.target_url = target_url.rstrip("/")
         self.policy_engine = policy_engine
         self.detector = anomaly_detector
         self.credential_manager = credential_manager
         self.require_auth = require_auth
+        self.cloud_client = cloud_client  # NavilCloudClient for telemetry
 
         self.traffic_log: deque[dict[str, Any]] = deque(maxlen=self.MAX_TRAFFIC_LOG)
         self.stats = {
@@ -203,8 +205,39 @@ class MCPSecurityProxy:
                 is_list_tools=False,
             )
             alert_count_after = len(self.detector.alerts)
-            if alert_count_after > alert_count_before:
-                self.stats["alerts_generated"] += alert_count_after - alert_count_before
+            new_alerts = alert_count_after - alert_count_before
+            if new_alerts > 0:
+                self.stats["alerts_generated"] += new_alerts
+
+            # Cloud telemetry: ship event + any new alerts
+            if self.cloud_client:
+                import asyncio
+
+                try:
+                    asyncio.ensure_future(
+                        self.cloud_client.record_event(
+                            agent_name=agent_name,
+                            tool_name=tool_name,
+                            action=action,
+                            duration_ms=duration_ms,
+                            data_accessed_bytes=response_bytes,
+                            success="error" not in response_data,
+                        )
+                    )
+                    # Ship new alerts
+                    for a in self.detector.alerts[-new_alerts:] if new_alerts > 0 else []:
+                        a_dict = a if isinstance(a, dict) else a.__dict__
+                        asyncio.ensure_future(
+                            self.cloud_client.report_alert(
+                                agent_name=a_dict.get("agent_name", agent_name),
+                                anomaly_type=a_dict.get("anomaly_type", "UNKNOWN"),
+                                severity=a_dict.get("severity", "MEDIUM"),
+                                description=a_dict.get("description", ""),
+                                evidence=a_dict.get("evidence", []),
+                            )
+                        )
+                except Exception:
+                    pass  # telemetry is best-effort
 
             self.stats["forwarded"] += 1
             self._log_traffic(agent_name, method, tool_name, "ALLOWED", duration_ms, response_bytes)

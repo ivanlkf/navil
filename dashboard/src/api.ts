@@ -363,12 +363,137 @@ export interface AnalyticsOverview {
   trends: TrendPoint[]
 }
 
+// API Key Types (Cloud)
+export interface ApiKeyInfo {
+  id: number
+  key_prefix: string
+  name: string
+  scopes: string[]
+  created_at: string
+  last_used_at: string | null
+  expires_at: string | null
+  revoked: boolean
+}
+
+export interface ApiKeyCreated {
+  key_id: number
+  key_prefix: string
+  raw_key: string
+  name: string
+  scopes: string[]
+}
+
+export interface ProxyConnection {
+  status: 'connected' | 'stale' | 'disconnected'
+  last_heartbeat: string | null
+  proxy_version: string | null
+  hostname: string | null
+}
+
 // Billing Types
 export interface BillingInfo {
   plan: 'free' | 'lite' | 'elite'
   llm_call_count: number
   has_byok_key: boolean
   can_use_llm: boolean
+  stripe_enabled: boolean
+}
+
+// Admin Types
+export interface AdminOverview {
+  tenant_detectors_active: number
+  llm_available: boolean
+  llm_provider: string
+  llm_model: string
+  stripe_enabled: boolean
+  proxy_running: boolean
+  total_events: number
+  total_alerts: number
+  total_api_keys: number
+  total_tenants: number
+  connected_proxies: number
+  events_last_hour: number
+  alerts_last_hour: number
+  critical_alerts_24h: number
+  redis_configured: boolean
+  scheduler_running: boolean
+}
+
+export interface AdminTenant {
+  user_id: string
+  event_count: number
+  alert_count: number
+  api_key_count: number
+  proxy_status: 'connected' | 'stale' | 'disconnected'
+  last_seen: string | null
+  plan: string
+}
+
+export interface AdminTenantList {
+  tenants: AdminTenant[]
+  total: number
+}
+
+export interface AdminAlert {
+  id: number
+  user_id: string
+  agent_name: string
+  anomaly_type: string
+  severity: string
+  details: string
+  created_at: string | null
+}
+
+export interface AdminAlertList {
+  alerts: AdminAlert[]
+  total: number
+}
+
+export interface AdminApiKey {
+  id: number
+  user_id: string
+  key_prefix: string
+  name: string
+  revoked: boolean
+  last_used_at: string | null
+  created_at: string | null
+}
+
+export interface AdminSystem {
+  llm: {
+    available: boolean
+    api_key_set: boolean
+    provider: string
+    model: string
+    base_url: string
+  }
+  tenant_detectors: { active: number; max_size: number }
+  stripe_enabled: boolean
+  proxy_running: boolean
+  database: { url?: string; status: string; error?: string }
+  redis: { status: string; url?: string; used_memory_mb?: number; error?: string }
+  scheduler: { status: string }
+  environment: {
+    clerk_configured: boolean
+    stripe_configured: boolean
+    resend_configured: boolean
+    admin_ids_set: boolean
+  }
+}
+
+export interface ThroughputPoint {
+  hour: string
+  count: number
+}
+
+export interface AdminThroughput {
+  events: ThroughputPoint[]
+  alerts: ThroughputPoint[]
+}
+
+export interface AdminBilling {
+  total_users: number
+  plan_distribution: Record<string, number>
   stripe_enabled: boolean
 }
 
@@ -441,6 +566,13 @@ export const api = {
   // Analytics endpoints (Elite)
   getAnalyticsOverview: () => get<AnalyticsOverview>('/analytics/overview'),
 
+  // API Key endpoints (Cloud)
+  listApiKeys: () => get<ApiKeyInfo[]>('/api-keys'),
+  createApiKey: (name: string, scopes: string[] = ['ingest']) =>
+    post<ApiKeyCreated>('/api-keys', { name, scopes }),
+  revokeApiKey: (keyId: number) => del<{ status: string }>(`/api-keys/${keyId}`),
+  getProxyConnection: () => get<ProxyConnection>('/proxy/connection'),
+
   // Billing endpoints
   getBilling: () => get<BillingInfo>('/billing/plan'),
   setPlan: (plan: string) =>
@@ -449,4 +581,35 @@ export const api = {
     post<{ checkout_url: string }>('/billing/checkout', data),
   createPortal: () =>
     post<{ portal_url: string }>('/billing/portal', {}),
+
+  // Admin endpoints
+  adminOverview: () => get<AdminOverview>('/admin/overview'),
+  adminTenants: (limit = 50, offset = 0, search = '') => {
+    const params = new URLSearchParams()
+    params.set('limit', String(limit))
+    params.set('offset', String(offset))
+    if (search) params.set('search', search)
+    return get<AdminTenantList>(`/admin/tenants?${params}`)
+  },
+  adminTenantDetail: (userId: string) =>
+    get<Record<string, unknown>>(`/admin/tenants/${encodeURIComponent(userId)}`),
+  adminAlerts: (severity?: string, limit = 100, offset = 0) => {
+    const params = new URLSearchParams()
+    if (severity) params.set('severity', severity)
+    params.set('limit', String(limit))
+    params.set('offset', String(offset))
+    return get<AdminAlertList>(`/admin/alerts?${params}`)
+  },
+  adminApiKeys: (limit = 100, offset = 0) => {
+    const params = new URLSearchParams()
+    params.set('limit', String(limit))
+    params.set('offset', String(offset))
+    return get<{ keys: AdminApiKey[]; total: number }>(`/admin/api-keys?${params}`)
+  },
+  adminRevokeApiKey: (keyId: number) =>
+    del<{ status: string }>(`/admin/api-keys/${keyId}`),
+  adminSystem: () => get<AdminSystem>('/admin/system'),
+  adminThroughput: (hours = 24) =>
+    get<AdminThroughput>(`/admin/throughput?hours=${hours}`),
+  adminBilling: () => get<AdminBilling>('/admin/billing'),
 }

@@ -7,12 +7,15 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
+from navil.cloud.admin_api import router as admin_router
 from navil.cloud.api import router
 from navil.cloud.auth import ClerkAuthMiddleware
 from navil.cloud.demo import seed_demo_data
@@ -30,6 +33,28 @@ _allow_origins: list[str] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Security headers middleware
+# ---------------------------------------------------------------------------
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
+
+    async def dispatch(self, request: Request, call_next: Any) -> Response:  # type: ignore[override]
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # HSTS only in production (when ALLOWED_ORIGINS is set)
+        if _origins_env:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+        return response
+
+
 def create_app(with_demo: bool = True) -> FastAPI:
     """Create the FastAPI application."""
     app = FastAPI(
@@ -37,6 +62,9 @@ def create_app(with_demo: bool = True) -> FastAPI:
         description="Security dashboard for AI agent fleet monitoring",
         version="0.1.0",
     )
+
+    # Security headers (outermost → runs first)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.add_middleware(
         CORSMiddleware,
@@ -50,6 +78,7 @@ def create_app(with_demo: bool = True) -> FastAPI:
     app.add_middleware(ClerkAuthMiddleware)
 
     app.include_router(router)
+    app.include_router(admin_router)
 
     @app.on_event("startup")
     def on_startup() -> None:
@@ -65,6 +94,24 @@ def create_app(with_demo: bool = True) -> FastAPI:
         if with_demo:
             seed_demo_data(state)
             logger.info("Demo data seeded: 5 agents, ~150 invocations, 5 credentials")
+
+        # Start background scheduler
+        try:
+            from navil.cloud.scheduler import start_scheduler
+
+            start_scheduler()
+            logger.info("Background scheduler started")
+        except Exception:
+            logger.warning("Background scheduler failed to start", exc_info=True)
+
+    @app.on_event("shutdown")
+    def on_shutdown() -> None:
+        try:
+            from navil.cloud.scheduler import stop_scheduler
+
+            stop_scheduler()
+        except Exception:
+            pass
 
     # Serve frontend static files if built
     if DASHBOARD_DIR.exists():

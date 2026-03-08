@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Pantheon Lab Limited
-# Licensed under the Business Source License 1.1 (see LICENSE.cloud)
+# Licensed under the Apache License, Version 2.0 (see LICENSE)
 """Unified LLM client supporting Claude, OpenAI, Gemini, and Ollama."""
 
 from __future__ import annotations
@@ -46,11 +46,12 @@ class LLMClient:
         elif provider == "ollama":
             import openai
 
+            ollama_base = base_url or "http://localhost:11434/v1"
             self.client = openai.OpenAI(
                 api_key="ollama",  # Ollama doesn't require a real key
-                base_url=base_url or "http://localhost:11434/v1",
+                base_url=ollama_base,
             )
-            self.model = model or "llama3.2"
+            self.model = model or self._detect_ollama_model(ollama_base)
             # Ollama uses the OpenAI-compatible chat API
             self.provider = "openai"
         elif provider in ("openai", "openai_compatible"):
@@ -74,6 +75,35 @@ class LLMClient:
             self.model = model or "gemini-2.0-flash"
         else:
             raise ValueError(f"Unsupported provider: {provider}")
+
+    @staticmethod
+    def _detect_ollama_model(base_url: str) -> str:
+        """Query Ollama for available models and pick the first local one."""
+        import urllib.request
+
+        # base_url is like http://localhost:11434/v1 — strip /v1
+        host = base_url.rstrip("/").removesuffix("/v1")
+        try:
+            import json as _json
+
+            req = urllib.request.Request(
+                f"{host}/api/tags", method="GET",
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = _json.loads(resp.read())
+            models = data.get("models", [])
+            # Prefer local models (skip cloud/remote ones)
+            for m in models:
+                name = m.get("name", "")
+                if m.get("size", 0) > 1000:  # skip tiny cloud stubs
+                    logger.info("Auto-detected Ollama model: %s", name)
+                    return name
+            # Fallback to first model if all are small
+            if models:
+                return models[0].get("name", "llama3.2")
+        except Exception:
+            logger.debug("Could not query Ollama models, using default")
+        return "llama3.2"
 
     def complete(self, system_prompt: str, user_message: str) -> str:
         """Synchronous completion."""

@@ -106,19 +106,33 @@ class StripeBillingManager:
         email: str = "",
         plan: str = "lite",
     ) -> str:
-        """Create a Stripe Checkout Session for the given plan.  Returns session URL."""
+        """Create a Stripe Checkout Session with 14-day trial.  Returns session URL."""
         import stripe
 
         price_id = STRIPE_ELITE_PRICE_ID if plan == "elite" else STRIPE_LITE_PRICE_ID
         customer_id = self._get_or_create_customer(user_id, email)
-        session = stripe.checkout.Session.create(
-            customer=customer_id,
-            mode="subscription",
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url=success_url,
-            cancel_url=cancel_url,
-            metadata={"navil_user_id": user_id},
+
+        # Check if user already had a trial (only first subscription gets trial)
+        has_had_sub = bool(
+            stripe.Subscription.list(customer=customer_id, limit=1).data
         )
+
+        session_kwargs: dict[str, Any] = {
+            "customer": customer_id,
+            "mode": "subscription",
+            "line_items": [{"price": price_id, "quantity": 1}],
+            "success_url": success_url,
+            "cancel_url": cancel_url,
+            "metadata": {"navil_user_id": user_id},
+        }
+
+        # 14-day free trial for first-time subscribers
+        if not has_had_sub:
+            session_kwargs["subscription_data"] = {
+                "trial_period_days": 14,
+            }
+
+        session = stripe.checkout.Session.create(**session_kwargs)
         return session.url or ""
 
     def create_portal_session(self, user_id: str, return_url: str) -> str:
@@ -176,3 +190,58 @@ class StripeBillingManager:
     def increment_llm_calls(self, user_id: str) -> int:
         """No-op counter for Stripe mode (metering done via Stripe)."""
         return 0
+
+    # -- Monthly event count (plan enforcement) ----------------------------
+
+    # Monthly event limits by plan
+    MONTHLY_EVENT_LIMITS: dict[str, int] = {
+        "free": 5_000,
+        "lite": 100_000,
+        "elite": 10_000_000,  # effectively unlimited
+    }
+
+    def check_monthly_event_limit(self, user_id: str, count: int = 1) -> tuple[bool, int]:
+        """Check if user is within monthly event quota.
+
+        Returns ``(allowed, remaining)``.
+        Uses the database to track monthly event counts.
+        """
+        import datetime as dt
+
+        status = self.get_subscription_status(user_id)
+        limit = self.MONTHLY_EVENT_LIMITS.get(status.plan, 5_000)
+
+        try:
+            from navil.cloud.database import get_session
+            from navil.cloud.models import Event
+
+            now = dt.datetime.utcnow()
+            month_start = now.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0,
+            )
+            with get_session() as session:
+                current = (
+                    session.query(Event)
+                    .filter(Event.user_id == user_id, Event.created_at >= month_start)
+                    .count()
+                )
+        except Exception:
+            # If DB query fails, allow the request
+            return True, limit
+
+        remaining = max(0, limit - current)
+        return current + count <= limit, remaining
+
+    # -- Usage reporting to Stripe ----------------------------------------
+
+    def report_usage(self, user_id: str, metric: str, quantity: int) -> None:
+        """Report usage to Stripe for metered billing (future use).
+
+        Currently a no-op — will be activated when metered add-on
+        (overage pricing) is configured in Stripe.
+        """
+        # Placeholder for Stripe Usage Records API
+        logger.debug(
+            "Usage report: user=%s metric=%s quantity=%d",
+            user_id, metric, quantity,
+        )

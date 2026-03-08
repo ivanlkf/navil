@@ -1,14 +1,20 @@
 # Copyright (c) 2026 Pantheon Lab Limited
 # Licensed under the Business Source License 1.1 (see LICENSE.cloud)
-"""Clerk JWT authentication middleware for Navil Cloud.
+"""Authentication middleware for Navil Cloud.
 
-When ``CLERK_SECRET_KEY`` **and** ``CLERK_ISSUER_URL`` are set the middleware
-verifies incoming ``Authorization: Bearer <token>`` headers using Clerk's
-JWKS endpoint and injects ``request.state.user_id`` / ``request.state.user_email``.
+Supports two authentication methods:
 
-When the environment variables are *not* present the middleware is a
-transparent no-op — every request passes through unauthenticated.  This
-guarantees zero behavioural change for existing deployments and tests.
+1. **Clerk JWT** — for human users accessing the dashboard.
+   Requires ``CLERK_SECRET_KEY`` and ``CLERK_ISSUER_URL`` environment variables.
+
+2. **API Key** — for proxy-to-cloud telemetry ingestion.
+   Keys start with ``nvl_`` and are verified against the ``api_keys`` table.
+
+Both methods set ``request.state.user_id`` so downstream handlers are
+auth-agnostic.
+
+When neither Clerk nor API keys are configured, the middleware is a
+transparent no-op for backward compatibility with local development.
 """
 
 from __future__ import annotations
@@ -74,11 +80,39 @@ def verify_clerk_token(token: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# API Key verification
+# ---------------------------------------------------------------------------
+
+_api_key_manager: Any | None = None
+
+
+def _get_api_key_manager() -> Any:
+    """Return a cached ApiKeyManager singleton."""
+    global _api_key_manager  # noqa: PLW0603
+    if _api_key_manager is None:
+        from navil.cloud.api_keys import ApiKeyManager
+
+        _api_key_manager = ApiKeyManager()
+    return _api_key_manager
+
+
+def verify_api_key(token: str) -> tuple[str, list[str]] | None:
+    """Verify an ``nvl_`` API key.  Returns ``(user_id, scopes)`` or None."""
+    mgr = _get_api_key_manager()
+    return mgr.verify_key(token)
+
+
+# ---------------------------------------------------------------------------
 # FastAPI / Starlette middleware
 # ---------------------------------------------------------------------------
 
 # Paths that never require authentication (even when Clerk is configured).
-_PUBLIC_PATHS = frozenset({"/api/billing/plan", "/api/billing/webhook"})
+_PUBLIC_PATHS = frozenset({
+    "/api/billing/plan",
+    "/api/billing/webhook",
+    "/api/webhooks/clerk",
+    "/api/health",
+})
 
 
 def _is_public(path: str) -> bool:
@@ -89,10 +123,22 @@ def _is_public(path: str) -> bool:
     return path in _PUBLIC_PATHS
 
 
-class ClerkAuthMiddleware(BaseHTTPMiddleware):
-    """Validate Clerk JWTs and populate ``request.state.user_id``.
+def _is_ingest_path(path: str) -> bool:
+    """Return True for ingestion paths that accept API key auth."""
+    return path.startswith("/api/ingest/")
 
-    When Clerk is not configured (no env vars) the middleware is inert.
+
+class ClerkAuthMiddleware(BaseHTTPMiddleware):
+    """Authenticate requests via Clerk JWT or API key.
+
+    Dispatch logic:
+
+    - ``/api/ingest/*`` — verify ``Bearer nvl_...`` API key
+    - ``/api/*`` other — verify Clerk JWT (existing behavior)
+    - Non-API paths — always public (frontend SPA)
+
+    Both paths set ``request.state.user_id`` so downstream is auth-agnostic.
+    When Clerk is not configured, the middleware is inert (no-op).
     """
 
     async def dispatch(self, request: Request, call_next: Any) -> Response:
@@ -114,6 +160,21 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
 
         token = auth_header[7:]  # strip "Bearer "
 
+        # --- API key auth for ingestion endpoints ---
+        if _is_ingest_path(request.url.path) or token.startswith("nvl_"):
+            result = verify_api_key(token)
+            if result is None:
+                return JSONResponse(
+                    {"detail": "Invalid or expired API key"},
+                    status_code=401,
+                )
+            user_id, scopes = result
+            request.state.user_id = user_id
+            request.state.user_email = ""
+            request.state.api_key_scopes = scopes
+            return await call_next(request)
+
+        # --- Clerk JWT auth for dashboard endpoints ---
         try:
             payload = verify_clerk_token(token)
             request.state.user_id = payload.get("sub", "unknown")

@@ -3,6 +3,9 @@ import { NavLink, Outlet, Link } from 'react-router-dom'
 import Icon, { type IconName } from '../components/Icon'
 import UserProfile from '../components/UserProfile'
 
+/** True when running as Navil Cloud (Clerk key or explicit VITE_NAVIL_CLOUD flag) */
+const isCloud = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_NAVIL_CLOUD === 'true'
+
 const navItems: { to: string; label: string; icon: IconName }[] = [
   { to: '/dashboard', label: 'Dashboard', icon: 'chart' },
   { to: '/dashboard/gateway', label: 'Gateway', icon: 'gateway' },
@@ -15,6 +18,7 @@ const navItems: { to: string; label: string; icon: IconName }[] = [
   { to: '/dashboard/feedback', label: 'Feedback', icon: 'activity' },
   { to: '/dashboard/self-healing', label: 'Self-Healing', icon: 'sparkles' },
   { to: '/dashboard/analytics', label: 'Analytics', icon: 'chart' },
+  { to: '/dashboard/api-keys', label: 'API Keys', icon: 'key' },
   { to: '/dashboard/settings', label: 'Settings', icon: 'settings' },
 ]
 
@@ -48,8 +52,12 @@ export default function DashboardLayout() {
             </div>
             <span>
               Navil{' '}
-              <span className="text-xs font-normal text-indigo-400 bg-indigo-400/10 px-1.5 py-0.5 rounded">
-                OSS
+              <span className={`text-xs font-normal px-1.5 py-0.5 rounded ${
+                isCloud
+                  ? 'text-emerald-400 bg-emerald-400/10'
+                  : 'text-indigo-400 bg-indigo-400/10'
+              }`}>
+                {isCloud ? 'Cloud' : 'OSS'}
               </span>
             </span>
           </Link>
@@ -75,6 +83,9 @@ export default function DashboardLayout() {
               {label}
             </NavLink>
           ))}
+
+          {/* Admin portal: no sidebar link — admins access /admin directly.
+             Backend gates with NAVIL_ADMIN_IDS; customers never see the route. */}
         </nav>
 
         <UserProfile />

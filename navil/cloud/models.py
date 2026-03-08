@@ -155,3 +155,76 @@ class AnomalyTrend(Base):
     )
 
     __table_args__ = (Index("ix_anomaly_trends_user_period", "user_id", "period_start"),)
+
+
+class ApiKey(Base):
+    """Customer API key for proxy-to-cloud authentication."""
+
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(128), nullable=False, index=True)
+    key_hash = Column(String(64), nullable=False, unique=True)  # SHA-256
+    key_prefix = Column(String(12), nullable=False)  # "nvl_" + first 8 chars
+    name = Column(String(256), nullable=False, default="Default")
+    scopes = Column(Text, nullable=False, default='["ingest"]')  # JSON array
+    last_used_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)  # NULL = never expires
+    revoked = Column(Boolean, nullable=False, default=False)
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
+    )
+
+    __table_args__ = (Index("ix_api_keys_user", "user_id"),)
+
+
+class ProxyHeartbeat(Base):
+    """Last-seen heartbeat from a customer's proxy instance."""
+
+    __tablename__ = "proxy_heartbeats"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(128), nullable=False, index=True)
+    proxy_version = Column(String(32), nullable=False, default="unknown")
+    target_url = Column(String(1024), nullable=False, default="")
+    uptime_seconds = Column(Integer, nullable=False, default=0)
+    stats = Column(Text, nullable=False, default="{}")  # JSON
+    last_seen_at = Column(
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
+    )
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
+    )
+
+    __table_args__ = (Index("ix_heartbeat_user", "user_id"),)
+
+
+class EmailPreference(Base):
+    """User email notification preferences."""
+
+    __tablename__ = "email_preferences"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(128), nullable=False, unique=True)
+    alert_digest_frequency = Column(
+        String(16), nullable=False, default="daily"
+    )  # immediate, hourly, daily, off
+    alert_severity_threshold = Column(
+        String(16), nullable=False, default="HIGH"
+    )  # LOW, MEDIUM, HIGH, CRITICAL
+    marketing_opt_in = Column(Boolean, nullable=False, default=True)
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=dt.datetime.utcnow,
+        server_default=func.now(),
+    )

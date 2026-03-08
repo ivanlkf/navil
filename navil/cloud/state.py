@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+from collections import OrderedDict
 from typing import Any
 
 from navil._compat import has_llm
@@ -18,6 +20,69 @@ from navil.policy_engine import PolicyEngine
 from navil.scanner import MCPSecurityScanner
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Per-tenant detector cache (LRU)
+# ---------------------------------------------------------------------------
+
+_MAX_TENANT_DETECTORS = 5000
+
+
+class TenantDetectorCache:
+    """Thread-safe LRU cache of per-tenant anomaly detectors.
+
+    Each customer who ships telemetry to Navil Cloud gets their own
+    ``BehavioralAnomalyDetector`` instance.  The cache evicts the
+    least-recently-used detector when it exceeds ``max_size``.
+    """
+
+    def __init__(self, max_size: int = _MAX_TENANT_DETECTORS) -> None:
+        self._max_size = max_size
+        self._cache: OrderedDict[str, BehavioralAnomalyDetector] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def get(self, user_id: str) -> BehavioralAnomalyDetector:
+        """Return the detector for *user_id*, creating one if needed."""
+        with self._lock:
+            if user_id in self._cache:
+                self._cache.move_to_end(user_id)
+                return self._cache[user_id]
+
+            # Create new detector
+            detector = BehavioralAnomalyDetector(
+                feedback_loop=FeedbackLoop(),
+                pattern_store=PatternStore(),
+            )
+            self._cache[user_id] = detector
+
+            # Evict LRU if over capacity
+            while len(self._cache) > self._max_size:
+                evicted_id, _ = self._cache.popitem(last=False)
+                logger.debug("Evicted tenant detector: %s", evicted_id)
+
+            return detector
+
+    def remove(self, user_id: str) -> None:
+        """Remove a tenant detector from the cache."""
+        with self._lock:
+            self._cache.pop(user_id, None)
+
+    @property
+    def size(self) -> int:
+        return len(self._cache)
+
+    def evict_stale(self, max_idle_seconds: int = 3600) -> int:
+        """Evict detectors with zero observations (placeholder for idle tracking)."""
+        evicted = 0
+        with self._lock:
+            to_remove = [
+                uid for uid, det in self._cache.items()
+                if not det.invocations and not det.get_alerts()
+            ]
+            for uid in to_remove:
+                del self._cache[uid]
+                evicted += 1
+        return evicted
 
 
 class AppState:
@@ -37,6 +102,9 @@ class AppState:
         )
         self.demo_seeded = False
         self.billing = get_billing_backend()
+
+        # Per-tenant detector cache (cloud multi-tenant mode)
+        self.tenant_detectors = TenantDetectorCache()
 
         # Stripe billing flag
         from navil.cloud.stripe_billing import stripe_configured

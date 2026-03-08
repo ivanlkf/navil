@@ -27,6 +27,8 @@ import Gateway from './pages/Gateway'
 import Pentest from './pages/Pentest'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import ApiKeys from './pages/ApiKeys'
+import Onboarding from './pages/Onboarding'
 
 export default function App() {
   return (
@@ -41,6 +43,16 @@ export default function App() {
         {/* Auth routes */}
         <Route path="/sign-in/*" element={<SignIn />} />
         <Route path="/sign-up/*" element={<SignUp />} />
+
+        {/* Onboarding (protected, no sidebar) */}
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Protected dashboard routes */}
         <Route
@@ -62,6 +74,7 @@ export default function App() {
           <Route path="feedback" element={<Feedback />} />
           <Route path="self-healing" element={<SelfHealing />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="api-keys" element={<ApiKeys />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
